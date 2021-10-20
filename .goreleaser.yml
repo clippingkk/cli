@@ -3,9 +3,9 @@ before:
     - go mod tidy
     - go generate ./...
 builds:
-  - main: ./cmd/cli
+  - main: ./cmd/cli.go
     binary: clippingkk-cli
-  - env:
+    env:
       - CGO_ENABLED=0
     goos:
       - linux
