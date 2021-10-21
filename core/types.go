@@ -3,10 +3,10 @@ package core
 import "time"
 
 type TClippingItem struct {
-	Title     string
-	Content   string
-	PageAt    string
-	CreatedAt time.Time
+	Title     string    `json:"title"`
+	Content   string    `json:"content"`
+	PageAt    string    `json:"pageAt"`
+	CreatedAt time.Time `json:"createdAt"`
 }
 
 type KindleClippingFileLines int
