@@ -4,6 +4,7 @@ before:
     - go generate ./...
 builds:
   - main: ./cmd/cli.go
+    id: cli
     binary: clippingkk-cli
     env:
       - CGO_ENABLED=0
@@ -17,13 +18,11 @@ builds:
       - arm64
 
 archives:
-  - format: binary
-  - replacements:
-      darwin: Darwin
-      linux: Linux
-      windows: Windows
-      386: i386
-      amd64: x86_64
+  -
+    id: cli
+    format: binary
+    files:
+      - clippingkk-cli
 checksum:
   name_template: 'checksums.txt'
 snapshot:
