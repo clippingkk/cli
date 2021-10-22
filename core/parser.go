@@ -20,13 +20,19 @@ type clippingsParser struct {
 	language       FileLanuages
 	separator      []byte
 	locationRegexp *regexp.Regexp
+	chineseRegexp  *regexp.Regexp
+}
+
+func removeBOM(src []byte) []byte {
+	return bytes.Trim(src, "\xef\xbb\xbf")
 }
 
 func NewClippingParser(src []byte) clippingsParser {
 	return clippingsParser{
-		file:      bytes.Trim(src, "\xef\xbb\xbf"),
-		lines:     [][][]byte{},
-		separator: []byte("========"),
+		file:          removeBOM(src),
+		lines:         [][][]byte{},
+		separator:     []byte("========"),
+		chineseRegexp: regexp.MustCompile(`[\x{4E00}-\x{9FFF}|[\x{3000}-\x{303F}]`),
 	}
 }
 
@@ -35,12 +41,12 @@ func (c *clippingsParser) Prepare() error {
 	temp := make([][]byte, 0)
 
 	for _, line := range lines {
-		line = bytes.TrimSpace(line)
+		line = bytes.TrimSpace(removeBOM(line))
 		if bytes.Contains(line, c.separator) {
 			c.lines = append(c.lines, temp)
 			temp = [][]byte{}
 		}
-		if len(line) > 0 && !bytes.Contains(line, c.separator) {
+		if !bytes.Contains(line, c.separator) {
 			temp = append(temp, line)
 		}
 	}
@@ -71,7 +77,11 @@ func (c *clippingsParser) DoParse() (result []TClippingItem, err error) {
 		item.PageAt = pageAt
 		item.CreatedAt = date
 
-		item.Content = string(dataset[2])
+		if len(dataset[3]) == 0 {
+			continue
+		}
+
+		item.Content = string(dataset[3])
 		result = append(result, item)
 	}
 
@@ -102,8 +112,16 @@ func (c clippingsParser) exactInfo(line []byte) (pageAt string, date time.Time, 
 	dateSection = bytes.Replace(dateSection, []byte("Added on "), []byte(""), 1)
 	dateSection = bytes.Replace(dateSection, []byte("添加于 "), []byte(""), 1)
 
+	timeLayout := KindleDateTimeENLayout
+
+	if c.language == FileLanuagesZh {
+		dateSection = []byte(c.chineseRegexp.ReplaceAllString(string(dateSection), "-"))
+		dateSection = []byte(regexp.MustCompile(`-{2,10}`).ReplaceAllString(string(dateSection), ""))
+		timeLayout = KindleDateTimeZHLayout
+	}
+
 	dateSection = bytes.TrimSpace(dateSection)
 
-	date, err = time.Parse(KindleDateTimeLayout, string(dateSection))
+	date, err = time.Parse(timeLayout, string(dateSection))
 	return
 }

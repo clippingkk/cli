@@ -18,5 +18,6 @@ const (
 )
 
 const (
-	KindleDateTimeLayout = "Monday, January 2, 2006 3:4:5 PM"
+	KindleDateTimeENLayout = "Monday, January 2, 2006 3:4:5 PM"
+	KindleDateTimeZHLayout = "2006-1-2 3:4:5"
 )
