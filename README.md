@@ -22,10 +22,9 @@ cat My Clippings.txt | ck-cli > file.json
 遵循 unix pipe & redirect 规范
 
 ```bash
-cat ./core/clippings_en.txt | ck-cli | jq .[].title | uniq
+cat ./core/clippings_en.txt | ck-cli | jq .[].title | sort | uniq
 # 返回内容:
 # "Bad Blood: Secrets and Lies in a Silicon Valley Startup"
-# "论法的精神"
 # "凤凰项目 一个IT运维的传奇故事"
 # "论法的精神"
 ```
