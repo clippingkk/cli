@@ -15,3 +15,8 @@
 # vendor/
 
 dist/
+
+
+#Added by cargo
+
+/target
