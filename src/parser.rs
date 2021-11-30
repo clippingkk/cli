@@ -87,7 +87,7 @@ pub fn do_parse(input: &str) -> Result<Vec<TClippingItem>, Box<dyn Error>> {
 
     let r = regex::Regex::new(r"\u{feff}").unwrap();
 	for row in grouped {
-		let content = row[3].clone();
+		let content = row[3].trim();
 		if content.is_empty() {
 			continue;
 		}
@@ -100,7 +100,7 @@ pub fn do_parse(input: &str) -> Result<Vec<TClippingItem>, Box<dyn Error>> {
 			&chinese_regex,
 		)?;
 		let item = TClippingItem {
-			content: content,
+			content: content.to_string(),
 			title: title,
 			page_at: location,
 			created_at: dt,
@@ -147,7 +147,6 @@ fn parse_info(
 			let d = chinese_regex.replace_all(&date_section, "-");
 			let f = Regex::new(r"-{2,10}").unwrap().replace_all(&d, "");
 			// "2006-1-2 3:4:5"
-			println!("result str {:?}", f);
 			let parsed_dt = chrono::NaiveDateTime::parse_from_str(&f.trim(), "%Y-%m-%e %k:%M:%S")?;
 			dt = parsed_dt;
 		}
