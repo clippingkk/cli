@@ -1,19 +1,20 @@
-use clap::{Parser};
+use clap::Parser;
+use std::fs::File;
 use std::io;
 use std::io::prelude::*;
-use std::fs::File;
+use std::process;
 mod parser;
 
 #[derive(Parser)]
 #[clap(version = "2.0.0", author = "Annatar.He<annatar.he+ck.cli@gmail.com>")]
 struct CommandOpts {
-    #[clap(short='i', long, default_value="")]
+    #[clap(short = 'i', long, default_value = "")]
     input: String,
-    #[clap(short='o', long, default_value="")]
+    #[clap(short = 'o', long, default_value = "")]
     output: String,
 }
 
-fn main() -> io::Result<()>{
+fn main() -> io::Result<()> {
     let opts: CommandOpts = CommandOpts::parse();
 
     let mut input_data: String = String::new();
@@ -32,9 +33,18 @@ fn main() -> io::Result<()>{
     // TODO: remove BOM from file
     let result = parser::do_parse(&input.trim());
 
-    match result {
-        Ok(res) => println!("{:?}", res),
-        Err(err) => println!("{}", err),
+    if let Err(err) = result {
+        eprintln!("{:?}", err);
+        process::exit(255);
+    }
+
+    let out = serde_json::to_string_pretty(&result.unwrap()).unwrap();
+    if opts.output.is_empty() {
+        io::stdout().write(out.as_bytes()).unwrap();
+    } else {
+        let mut f = File::create(opts.output)?;
+        f.write(out.as_bytes())?;
+        f.flush()?;
     }
 
     Ok(())
