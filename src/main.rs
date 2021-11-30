@@ -25,8 +25,12 @@ fn main() -> io::Result<()>{
         io::stdin().read_to_string(&mut input_data)?;
     }
 
+    let r = regex::Regex::new(r"\u{feff}").unwrap();
+
+    let input = r.replace_all(&input_data, "");
+
     // TODO: remove BOM from file
-    let result = parser::do_parse(&input_data);
+    let result = parser::do_parse(&input.trim());
 
     match result {
         Ok(res) => println!("{:?}", res),
