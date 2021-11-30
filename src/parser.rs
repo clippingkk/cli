@@ -1,21 +1,45 @@
-use chrono::{DateTime, TimeZone, Utc};
+use chrono;
 use regex::Regex;
 use std::error::Error;
 use std::vec::Vec;
+use serde::{Serialize, Deserialize};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TClippingItem {
-	title: String,
-	content: String,
-	pageAt: String,
-	createdAt: chrono::NaiveDateTime,
+	pub title: String,
+	pub content: String,
+	#[serde(rename="pageAt")]
+	pub page_at: String,
+	#[serde(rename="createdAt", with="datetime_parser_with_rfc3339")]
+	pub created_at: chrono::NaiveDateTime,
 }
 
-pub enum KindleClippingFileLines {
-	Title,
-	Info,
-	Content,
+
+mod datetime_parser_with_rfc3339 {
+    use chrono::{DateTime, Utc, NaiveDateTime, TimeZone};
+    use serde::{self, Deserialize, Serializer, Deserializer};
+    pub fn serialize<S>(
+        date: &NaiveDateTime,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+		let s = Utc.from_local_datetime(date).unwrap().to_rfc3339();
+        serializer.serialize_str(&s)
+    }
+    pub fn deserialize<'de, D>(
+        deserializer: D,
+    ) -> Result<NaiveDateTime, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+		let d = DateTime::parse_from_rfc3339(&s).unwrap();
+		Ok(d.naive_utc())
+    }
 }
+
 #[derive(Debug)]
 enum KindleClippingLanguage {
 	Zh,
@@ -60,8 +84,15 @@ pub fn do_parse(input: &str) -> Result<Vec<TClippingItem>, Box<dyn Error>> {
 
 	let mut result_list: Vec<TClippingItem> = vec![];
 	let chinese_regex = Regex::new(r"[\x{4E00}-\x{9FFF}|\x{3000}-\x{303F}]").unwrap();
+
+    let r = regex::Regex::new(r"\u{feff}").unwrap();
 	for row in grouped {
-		let title = parse_title(&row[0]);
+		let content = row[3].clone();
+		if content.is_empty() {
+			continue;
+		}
+
+		let title = parse_title(&r.replace_all(&row[0], "").trim().to_string());
 		let (location, dt) = parse_info(
 			&row[1],
 			&la_config.location,
@@ -69,10 +100,10 @@ pub fn do_parse(input: &str) -> Result<Vec<TClippingItem>, Box<dyn Error>> {
 			&chinese_regex,
 		)?;
 		let item = TClippingItem {
-			content: row[3].clone(),
+			content: content,
 			title: title,
-			pageAt: location,
-			createdAt: dt,
+			page_at: location,
+			created_at: dt,
 		};
 		result_list.push(item.clone());
 	}
@@ -84,10 +115,11 @@ fn parse_title(line: &String) -> String {
 	let stop_worlds: Vec<&str> = vec!["(", "（"];
 	let mut title = line.clone();
 	for w in stop_worlds {
-		title = title.split(w).collect();
+		let nt: Vec<&str> = title.split(w).collect();
+		title = nt.first().unwrap().to_string();
 	}
 
-	title.trim_end_matches(")").to_string()
+	title.trim_end_matches(")").trim().to_string()
 }
 
 fn parse_info(
