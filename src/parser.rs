@@ -114,8 +114,9 @@ fn parse_info(
 		KindleClippingLanguage::Zh => {
 			let d = chinese_regex.replace_all(&date_section, "-");
 			let f = Regex::new(r"-{2,10}").unwrap().replace_all(&d, "");
+			// "2006-1-2 3:4:5"
 			println!("result str {:?}", f);
-			let parsed_dt = chrono::NaiveDateTime::parse_from_str(&f.trim(), "")?;
+			let parsed_dt = chrono::NaiveDateTime::parse_from_str(&f.trim(), "%Y-%m-%e %k:%M:%S")?;
 			dt = parsed_dt;
 		}
 		KindleClippingLanguage::En => {
