@@ -1,6 +1,6 @@
 [package]
 name = "ck_cli"
-version = "0.1.0"
+version = "2.0.3"
 authors = ["AnnatarHe <Annatar.He+github@gmail.com>"]
 edition = "2021"
 
