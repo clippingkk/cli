@@ -3,6 +3,8 @@ use std::fs::File;
 use std::io;
 use std::io::prelude::*;
 use std::process;
+use tokio;
+use tokio::signal;
 mod parser;
 
 #[derive(Parser)]
@@ -14,7 +16,7 @@ struct CommandOpts {
     output: String,
 }
 
-fn main() -> io::Result<()> {
+async fn main_fn() -> Result<(), Box<dyn std::error::Error>> {
     let opts: CommandOpts = CommandOpts::parse();
 
     let mut input_data: String = String::new();
@@ -29,8 +31,6 @@ fn main() -> io::Result<()> {
     let r = regex::Regex::new(r"\u{feff}").unwrap();
 
     let input = r.replace_all(&input_data, "");
-
-    // TODO: remove BOM from file
     let result = parser::do_parse(&input.trim());
 
     if let Err(err) = result {
@@ -47,5 +47,16 @@ fn main() -> io::Result<()> {
         f.flush()?;
     }
 
+    process::exit(0);
+}
+
+async fn ctrlc_stop() -> Result<(), Box<dyn std::error::Error>> {
+    signal::ctrl_c().await?;
+    Ok(())
+}
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let _ = tokio::join!(main_fn(), ctrlc_stop());
     Ok(())
 }
