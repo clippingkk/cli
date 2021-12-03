@@ -22,8 +22,7 @@ async fn main_fn() -> Result<(), Box<dyn std::error::Error>> {
     let mut input_data: String = String::new();
 
     if !opts.input.eq("") {
-        let mut f = File::open(opts.input)?;
-        f.read_to_string(&mut input_data)?;
+        input_data = std::fs::read_to_string(opts.input)?;
     } else {
         io::stdin().read_to_string(&mut input_data)?;
     }
