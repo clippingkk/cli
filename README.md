@@ -1,24 +1,12 @@
-# clippingkk-cli [![codecov](https://codecov.io/gh/clippingkk/cli/branch/master/graph/badge.svg?token=68N24T6T9P)](https://codecov.io/gh/clippingkk/cli)
+# CK-CLI [![codecov](https://codecov.io/gh/clippingkk/cli/branch/master/graph/badge.svg?token=68N24T6T9P)](https://codecov.io/gh/clippingkk/cli)
 
-命令行解析 kindle 文件 `My Clippings.txt`
+`ck-cli`(clippingkk-cli) is a TUI(Terminal User Interface) to parse `My Clippings.txt` that clippings in Amazon Kindle to user friendly data struct.
 
+## Installation
 
-手动从 `release` 中下载对应的二进制文件，例如：
+download latest version from [release page](https://github.com/clippingkk/cli/releases) and add to `$PATH`
 
-```
-curl -L \
-	-o ck-cli \
-	https://github.com/clippingkk/cli/releases/download/v1.0.1/clippingkk-cli_1.0.1_darwin_amd64
-```
-
-## 使用方式
-
-参数:
-
-- `--i` optional. 表示 **input** 填入希望解析的文件路径. 如无该参数则通过 stdin 获取
-- `--o` optional. 表示 **output** 填入输出文件路径. 如无该参数则输出至 stdout
-
-例子：
+## Usage
 
 ```bash
 ck-cli -i /path/to/My Clippings.txt -o /path/output.json
@@ -26,7 +14,16 @@ cat My Clippings.txt | ck-cli -o /path/output.json
 cat My Clippings.txt | ck-cli > file.json
 ```
 
-json 数据结构如下：
+Arguments:
+
+|    key |   value |   type |   desc |
+| ------ | ------- | ------ | ------ |
+| input(-i) | /path/to/My Clippings.txt | file path | if empty it will read from stdin |
+| output(-o) | /path/to/output.json | file path | if empty it will read from stdout |
+
+Result:
+
+output format is json. and it will be like this:
 
 ```json
 [{
@@ -37,7 +34,7 @@ json 数据结构如下：
 }]
 ```
 
-可以组合更多 *nix 的命令进行更多处理，例如：
+You can compose any *nix command to process the result, like this:
 
 ```bash
 cat ./core/clippings_en.txt | ck-cli | jq .[].title | sort | uniq
@@ -47,3 +44,11 @@ cat ./core/clippings_en.txt | ck-cli | jq .[].title | sort | uniq
 # "论法的精神"
 ```
 
+## Contributing
+
+Pull requests are welcome. For major changes, please open an issue first to discuss what you would like to change.
+
+Please make sure to update tests as appropriate.
+
+## License
+[MIT](https://choosealicense.com/licenses/mit/)
