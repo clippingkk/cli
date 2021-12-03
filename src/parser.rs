@@ -1,43 +1,37 @@
 use chrono;
 use regex::Regex;
+use serde::{Deserialize, Serialize};
 use std::error::Error;
 use std::vec::Vec;
-use serde::{Serialize, Deserialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TClippingItem {
 	pub title: String,
 	pub content: String,
-	#[serde(rename="pageAt")]
+	#[serde(rename = "pageAt")]
 	pub page_at: String,
-	#[serde(rename="createdAt", with="datetime_parser_with_rfc3339")]
+	#[serde(rename = "createdAt", with = "datetime_parser_with_rfc3339")]
 	pub created_at: chrono::NaiveDateTime,
 }
 
-
 mod datetime_parser_with_rfc3339 {
-    use chrono::{DateTime, Utc, NaiveDateTime, TimeZone};
-    use serde::{self, Deserialize, Serializer, Deserializer};
-    pub fn serialize<S>(
-        date: &NaiveDateTime,
-        serializer: S,
-    ) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
+	use chrono::{DateTime, NaiveDateTime, TimeZone, Utc};
+	use serde::{self, Deserialize, Deserializer, Serializer};
+	pub fn serialize<S>(date: &NaiveDateTime, serializer: S) -> Result<S::Ok, S::Error>
+	where
+		S: Serializer,
+	{
 		let s = Utc.from_local_datetime(date).unwrap().to_rfc3339();
-        serializer.serialize_str(&s)
-    }
-    pub fn deserialize<'de, D>(
-        deserializer: D,
-    ) -> Result<NaiveDateTime, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let s = String::deserialize(deserializer)?;
+		serializer.serialize_str(&s)
+	}
+	pub fn deserialize<'de, D>(deserializer: D) -> Result<NaiveDateTime, D::Error>
+	where
+		D: Deserializer<'de>,
+	{
+		let s = String::deserialize(deserializer)?;
 		let d = DateTime::parse_from_rfc3339(&s).unwrap();
 		Ok(d.naive_utc())
-    }
+	}
 }
 
 #[derive(Debug)]
@@ -81,11 +75,10 @@ pub fn do_parse(input: &str) -> Result<Vec<TClippingItem>, Box<dyn Error>> {
 		}
 	}
 
-
 	let mut result_list: Vec<TClippingItem> = vec![];
 	let chinese_regex = Regex::new(r"[\x{4E00}-\x{9FFF}|\x{3000}-\x{303F}]").unwrap();
 
-    let r = regex::Regex::new(r"\u{feff}").unwrap();
+	let r = regex::Regex::new(r"\u{feff}").unwrap();
 	for row in grouped {
 		let content = row[3].trim();
 		if content.is_empty() {
@@ -144,22 +137,28 @@ fn parse_info(
 
 	match la {
 		KindleClippingLanguage::Zh => {
+			let clocks_ext = {
+				if date_section.contains("上午") {
+					"AM"
+				} else {
+					"PM"
+				}
+			};
 			let d = chinese_regex.replace_all(&date_section, "-");
-			let f = Regex::new(r"-{2,10}").unwrap().replace_all(&d, "");
+			let mut f = Regex::new(r"-{2,10}").unwrap().replace_all(&d, "").trim().to_owned();
+			f.push_str(" ");
+			f.push_str(clocks_ext);
 			// "2006-1-2 3:4:5"
-			let parsed_dt = chrono::NaiveDateTime::parse_from_str(&f.trim(), "%Y-%m-%e %k:%M:%S")?;
+			let parsed_dt = chrono::NaiveDateTime::parse_from_str(&f, "%Y-%m-%e %l:%M:%S %p")?;
 			dt = parsed_dt;
 		}
 		KindleClippingLanguage::En => {
-			let parsed_dt = chrono::NaiveDateTime::parse_from_str(&date_section.trim(), "%A, %B %e, %Y %l:%M:%S %p")?;
+			let parsed_dt = chrono::NaiveDateTime::parse_from_str(
+				&date_section.trim(),
+				"%A, %B %e, %Y %l:%M:%S %p",
+			)?;
 			dt = parsed_dt;
 		}
 	}
-
 	Ok((page_at.to_string(), dt))
 }
-
-// const KindleDateTimeLayout {
-// 	ENLayout = "Monday, January 2, 2006 3:4:5 PM"
-// 	KindleDateTimeZHLayout = "2006-1-2 3:4:5"
-// }
