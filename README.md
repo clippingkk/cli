@@ -19,7 +19,7 @@ Arguments:
 |    key |   value |   type |   desc |
 | ------ | ------- | ------ | ------ |
 | input(-i) | /path/to/My Clippings.txt | file path | if empty it will read from stdin |
-| output(-o) | /path/to/output.json | file path | if empty it will read from stdout |
+| output(-o) | /path/to/output.json | file path | if empty it will put to stdout |
 
 Result:
 
