@@ -5,6 +5,7 @@ use std::io::prelude::*;
 use std::process;
 use tokio;
 use tokio::signal;
+mod http;
 mod parser;
 
 #[derive(Parser)]
@@ -37,9 +38,13 @@ async fn main_fn() -> Result<(), Box<dyn std::error::Error>> {
         process::exit(255);
     }
 
-    let out = serde_json::to_string_pretty(&result.unwrap()).unwrap();
+    let result_obj = result.unwrap();
+
+    let out = serde_json::to_string_pretty(&result_obj).unwrap();
     if opts.output.is_empty() {
         io::stdout().write(out.as_bytes()).unwrap();
+    } else if opts.output.starts_with("http") {
+        http::sync_to_server(&opts.output, &result_obj).await?;
     } else {
         let mut f = File::create(opts.output)?;
         f.write(out.as_bytes())?;
