@@ -1,0 +1,4 @@
+[http]
+endpoint = "{{ SERVER_ENDPOINT }}"
+[http.headers]
+authorization = "Bearer {{ JWT_TOKEN_HERE }}"

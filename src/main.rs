@@ -1,3 +1,7 @@
+#[macro_use]
+extern crate colour;
+
+use crate::config::ensure_toml_config;
 use clap::Parser;
 use std::fs::File;
 use std::io;
@@ -5,7 +9,9 @@ use std::io::prelude::*;
 use std::process;
 use tokio;
 use tokio::signal;
+mod config;
 mod constants;
+mod graphql;
 mod http;
 mod parser;
 
@@ -16,11 +22,13 @@ struct CommandOpts {
     input: String,
     #[clap(short = 'o', long, default_value = "")]
     output: String,
+    #[clap(short = 'c', long, default_value = "")]
+    config_path: String,
 }
 
 async fn main_fn() -> Result<(), Box<dyn std::error::Error>> {
     let opts: CommandOpts = CommandOpts::parse();
-
+    let ck_config = ensure_toml_config(&opts.config_path)?;
     let mut input_data: String = String::new();
 
     if !opts.input.eq("") {
@@ -35,11 +43,9 @@ async fn main_fn() -> Result<(), Box<dyn std::error::Error>> {
     let result = parser::do_parse(&input.trim());
 
     if let Err(err) = result {
-        eprintln!("{:?}", err);
+        e_red_ln!("{:?}", err);
         process::exit(255);
     }
-
-    let jwt = String::new();
 
     let result_obj = result.unwrap();
 
@@ -47,7 +53,7 @@ async fn main_fn() -> Result<(), Box<dyn std::error::Error>> {
     if opts.output.is_empty() {
         io::stdout().write(out.as_bytes()).unwrap();
     } else if opts.output.starts_with("http") {
-        http::sync_to_server(&opts.output, &jwt, &result_obj).await?;
+        http::sync_to_server(&opts.output, &ck_config.http, &result_obj).await?;
     } else {
         let mut f = File::create(opts.output)?;
         f.write(out.as_bytes())?;

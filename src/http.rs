@@ -1,14 +1,17 @@
-use crate::constants::CK_ENDPOINT;
+use crate::config::CKConfigHttp;
+use crate::graphql::{CreateClippingsDataResponse, GraphQLResponse};
 use crate::parser::TClippingItem;
 use chrono::{TimeZone, Utc};
 use futures;
 use futures::{stream, StreamExt};
 use reqwest;
+use reqwest::header::{HeaderMap, HeaderName};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
+use std::error::Error;
+use std::str::FromStr;
 
 const PARALLEL_REQUESTS: usize = 10;
-const AUTH_HEADER_KEY: &str = "Authorization";
 
 const CREATE_CLIPPINGS_QUERY: &str =
     "mutation createClippings($payload: [ClippingInput!]!, $visible: Boolean) {
@@ -26,6 +29,7 @@ struct TClippingInput {
     book_id: &'static str,
     #[serde(rename = "pageAt")]
     page_at: String,
+    #[serde(rename = "createdAt")]
     created_at: String,
     source: &'static str,
 }
@@ -44,24 +48,44 @@ struct GraphQLPayload<T> {
     pub variables: T,
 }
 
+fn get_real_endpoint(
+    endpoint_in_arg: &String,
+    ck_http_config: &Option<CKConfigHttp>,
+) -> Result<String, Box<dyn Error>> {
+    if !endpoint_in_arg.starts_with("http") {
+        return Err("not allowed".into());
+    }
+
+    if endpoint_in_arg != "http" {
+        return Ok(endpoint_in_arg.clone());
+    }
+
+    if let Some(the_http_config) = ck_http_config {
+        if let Some(endpoint) = &the_http_config.endpoint {
+            return Ok(endpoint.clone());
+        }
+    }
+
+    return Err("http endpoint not found".into());
+}
+
 pub async fn sync_to_server(
     endpoint: &String,
-    jwt: &String,
+    ck_http_config: &Option<CKConfigHttp>,
     result: &Vec<TClippingItem>,
-) -> Result<bool, Box<dyn std::error::Error>> {
-    let request_url = {
-        if endpoint == "http" {
-            CK_ENDPOINT.to_string()
-        } else {
-            endpoint.clone()
-        }
-    };
-
-    // TODO: add login method
-    let mut credential = String::from("Bearer ");
-    credential.push_str(jwt);
+) -> Result<bool, Box<dyn Error>> {
+    let request_url = get_real_endpoint(endpoint, ck_http_config)?;
 
     let client = Client::new();
+    let mut header_maps = HeaderMap::new();
+
+    if let Some(http) = ck_http_config {
+        if let Some(hs) = &http.headers {
+            for (k, v) in hs {
+                header_maps.insert(HeaderName::from_str(&k).unwrap(), v.parse().unwrap());
+            }
+        }
+    }
 
     let chunked: Vec<&[TClippingItem]> = result.chunks(20).collect();
 
@@ -70,7 +94,7 @@ pub async fn sync_to_server(
             let c = client.clone();
             let req_url = request_url.clone();
             let v = &chunk.to_vec();
-            let token = credential.clone();
+            let headers = header_maps.clone();
             let payload = GraphQLPayload::<CreateClippingPayload> {
                 operation_name: "createClippings",
                 query: CREATE_CLIPPINGS_QUERY,
@@ -81,7 +105,7 @@ pub async fn sync_to_server(
                         .map(|x| TClippingInput {
                             title: x.title.clone(),
                             content: x.content.clone(),
-                            book_id: "",
+                            book_id: "0",
                             page_at: x.page_at.clone(),
                             created_at: Utc
                                 .from_local_datetime(&x.created_at)
@@ -95,7 +119,7 @@ pub async fn sync_to_server(
             tokio::spawn(async move {
                 let resp = c
                     .post(req_url)
-                    .header(AUTH_HEADER_KEY, token)
+                    .headers(headers)
                     .json(&payload)
                     .send()
                     .await?;
@@ -107,13 +131,30 @@ pub async fn sync_to_server(
     bodies
         .for_each(|b| async {
             match b {
-                Ok(Ok(b)) => println!("success {:?}", b),
-                Ok(Err(e)) => eprintln!("failed {:?}", e),
-                Err(e) => eprintln!("tokio error {:?}", e),
+                Ok(Ok(b)) => {
+                    let res: GraphQLResponse<CreateClippingsDataResponse> =
+                        serde_json::from_str(&b).unwrap();
+                    if let Some(errs) = res.errors {
+                        e_red_ln!(
+                            "request to {:?} got errors: {:?}",
+                            request_url,
+                            errs[0].message
+                        )
+                    }
+                    if let Some(data) = res.data {
+                        green_ln!("completed: {:?} rows", data.create_clippings.len())
+                    }
+                }
+                Ok(Err(e)) => {
+                    e_red_ln!("failed {:?}", e)
+                }
+                Err(e) => {
+                    e_red_ln!("tokio error {:?}", e)
+                }
             }
         })
         .await;
 
-    println!("done");
+    println!("done~");
     Ok(true)
 }

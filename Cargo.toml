@@ -15,3 +15,6 @@ serde_json = "1.0"
 tokio = { version = "1", features = ["full"] }
 reqwest = { version = "0.11.7", features = ["json"] }
 futures = { version = "0.3.18" }
+colour = "0.6.0"
+toml = "0.5.8"
+dirs = "4.0.0"
