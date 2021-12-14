@@ -1,5 +1,3 @@
 pub mod parser;
 
-pub use self::{
-	parser as CKParser,
-};
+pub use self::parser as CKParser;
