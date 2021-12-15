@@ -9,7 +9,7 @@ download latest version from [release page](https://github.com/clippingkk/cli/re
 ## Usage
 
 ```bash
-ck-cli -i /path/to/My Clippings.txt -o /path/output.json
+ck-cli parse -i /path/to/My Clippings.txt -o /path/output.json
 cat My Clippings.txt | ck-cli -o /path/output.json
 cat My Clippings.txt | ck-cli > file.json
 ```
@@ -37,8 +37,8 @@ output format is json. and it will be like this:
 You can compose any *nix command to process the result, like this:
 
 ```bash
-cat ./core/clippings_en.txt | ck-cli | jq .[].title | sort | uniq
-# 返回内容:
+cat ./core/clippings_en.txt | ck-cli parse | jq .[].title | sort | uniq
+# result text should be like this:
 # "Bad Blood: Secrets and Lies in a Silicon Valley Startup"
 # "凤凰项目 一个IT运维的传奇故事"
 # "论法的精神"
