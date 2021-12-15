@@ -2,8 +2,7 @@
 extern crate colour;
 
 use crate::config::ensure_toml_config;
-use clap::Parser;
-use std::fs::File;
+use clap::{AppSettings, Parser, Subcommand};
 use std::io;
 use std::io::prelude::*;
 use std::process;
@@ -15,49 +14,75 @@ mod graphql;
 mod http;
 mod parser;
 
+#[derive(Subcommand)]
+enum Commands {
+    // #[clap(setting(AppSettings::ArgRequiredElseHelp))]
+    Login {},
+    #[clap(setting(AppSettings::ArgRequiredElseHelp))]
+    Parse {
+        #[clap(short = 'i', long, default_value = "")]
+        input: String,
+        #[clap(short = 'o', long, default_value = "")]
+        output: String,
+    },
+}
+
 #[derive(Parser)]
+#[clap(name = "ck-cli")]
 #[clap(version = "2.0.0", author = "Annatar.He<annatar.he+ck.cli@gmail.com>")]
-struct CommandOpts {
-    #[clap(short = 'i', long, default_value = "")]
-    input: String,
-    #[clap(short = 'o', long, default_value = "")]
-    output: String,
+struct CliCommands {
     #[clap(short = 'c', long, default_value = "")]
-    config_path: String,
+    config: String,
+    #[clap(subcommand)]
+    command: Commands,
 }
 
 async fn main_fn() -> Result<(), Box<dyn std::error::Error>> {
-    let opts: CommandOpts = CommandOpts::parse();
-    let ck_config = ensure_toml_config(&opts.config_path)?;
-    let mut input_data: String = String::new();
+    let args = CliCommands::parse();
+    let ck_config = ensure_toml_config(&args.config)?;
 
-    if !opts.input.eq("") {
-        input_data = std::fs::read_to_string(opts.input)?;
-    } else {
-        io::stdin().read_to_string(&mut input_data)?;
-    }
+    match &args.command {
+        Commands::Login {} => {
+            // TODO: interactive
+            // 1: phone number / email
+            // 2: image verification
+            // 3: sms code check
+            // 4: receive auth response
+            // 5: save to local config
+            blue_ln!(" 💪  working on it")
+        }
+        Commands::Parse {
+            input,
+            output,
+        } => {
+            let mut input_data: String = String::new();
 
-    let r = regex::Regex::new(r"\u{feff}").unwrap();
+            if !input.eq("") {
+                input_data = std::fs::read_to_string(input)?;
+            } else {
+                io::stdin().read_to_string(&mut input_data)?;
+            }
 
-    let input = r.replace_all(&input_data, "");
-    let result = parser::do_parse(&input.trim());
+            let r = regex::Regex::new(r"\u{feff}").unwrap();
 
-    if let Err(err) = result {
-        e_red_ln!("{:?}", err);
-        process::exit(255);
-    }
+            let input = r.replace_all(&input_data, "");
+            let result = parser::do_parse(&input.trim());
 
-    let result_obj = result.unwrap();
+            if let Err(err) = result {
+                e_red_ln!(" ❌ {:?}", err);
+                return Err(err);
+            }
 
-    let out = serde_json::to_string_pretty(&result_obj).unwrap();
-    if opts.output.is_empty() {
-        io::stdout().write(out.as_bytes()).unwrap();
-    } else if opts.output.starts_with("http") {
-        http::sync_to_server(&opts.output, &ck_config.http, &result_obj).await?;
-    } else {
-        let mut f = File::create(opts.output)?;
-        f.write(out.as_bytes())?;
-        f.flush()?;
+            let result_obj = result.unwrap();
+            let out = serde_json::to_string_pretty(&result_obj).unwrap();
+            if output.is_empty() {
+                io::stdout().write(out.as_bytes())?;
+            } else if output.starts_with("http") {
+                http::sync_to_server(&output, &ck_config.http, &result_obj).await?;
+            } else {
+                std::fs::write(output, out)?;
+            }
+        }
     }
 
     process::exit(0);

@@ -6,6 +6,7 @@ use std::collections::HashMap;
 use std::error::Error;
 use std::fs;
 use std::path::Path;
+use std::path::PathBuf;
 
 #[derive(Serialize, Deserialize)]
 pub struct CKConfig {
@@ -32,14 +33,18 @@ fn create_empty_config(file_path: &Path) -> Result<CKConfig, Box<dyn Error>> {
 
 pub fn ensure_toml_config(config_path: &String) -> Result<CKConfig, Box<dyn Error>> {
     let the_config_path = {
+        let mut p = dirs::home_dir().unwrap();
         if config_path.is_empty() {
-            let mut p = dirs::home_dir().unwrap();
             p.push(".ck-cli.toml");
-            let pp = p.clone();
-            pp
         } else {
-            Path::new(config_path).to_path_buf()
+            if config_path.starts_with("~") {
+                p.push(config_path.replace("~/", ""))
+            } else {
+                p = PathBuf::from(config_path);
+            }
         }
+        let pp = p.clone();
+        pp
     };
 
     let the_config: CKConfig;

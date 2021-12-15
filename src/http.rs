@@ -136,25 +136,23 @@ pub async fn sync_to_server(
                         serde_json::from_str(&b).unwrap();
                     if let Some(errs) = res.errors {
                         e_red_ln!(
-                            "request to {:?} got errors: {:?}",
+                            " ❌ request to {:?} got errors: {:?}",
                             request_url,
                             errs[0].message
                         )
                     }
                     if let Some(data) = res.data {
-                        green_ln!("completed: {:?} rows", data.create_clippings.len())
+                        green_ln!(" ✅ completed: {:?} rows", data.create_clippings.len())
                     }
                 }
                 Ok(Err(e)) => {
-                    e_red_ln!("failed {:?}", e)
+                    e_red_ln!(" ❌ failed {:?}", e)
                 }
                 Err(e) => {
-                    e_red_ln!("tokio error {:?}", e)
+                    e_red_ln!(" ❌ tokio error {:?}", e)
                 }
             }
         })
         .await;
-
-    println!("done~");
     Ok(true)
 }
