@@ -18,7 +18,7 @@ mod parser;
 enum Commands {
     // #[clap(setting(AppSettings::ArgRequiredElseHelp))]
     Login {},
-    #[clap(setting(AppSettings::ArgRequiredElseHelp))]
+    // #[clap(setting(AppSettings::ArgRequiredElseHelp))]
     Parse {
         #[clap(short = 'i', long, default_value = "")]
         input: String,
