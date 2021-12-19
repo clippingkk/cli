@@ -18,3 +18,5 @@ futures = { version = "0.3.18" }
 colour = "0.6.0"
 toml = "0.5.8"
 dirs = "4.0.0"
+inquire = "0.2.1"
+viuer = "0.5.3"

@@ -1,6 +1,7 @@
 #[macro_use]
 extern crate colour;
 
+use crate::auth::get_auth_from_prompt;
 use crate::config::ensure_toml_config;
 use clap::{AppSettings, Parser, Subcommand};
 use std::io;
@@ -13,6 +14,7 @@ mod constants;
 mod graphql;
 mod http;
 mod parser;
+mod auth;
 
 #[derive(Subcommand)]
 enum Commands {
@@ -45,6 +47,7 @@ async fn main_fn() -> Result<(), Box<dyn std::error::Error>> {
         Commands::Login {} => {
             // TODO: interactive
             // 1: phone number / email
+            let auth_prompt_data = get_auth_from_prompt()?;
             // 2: image verification
             // 3: sms code check
             // 4: receive auth response
