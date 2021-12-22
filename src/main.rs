@@ -9,12 +9,12 @@ use std::io::prelude::*;
 use std::process;
 use tokio;
 use tokio::signal;
+mod auth;
 mod config;
 mod constants;
 mod graphql;
 mod http;
 mod parser;
-mod auth;
 
 #[derive(Subcommand)]
 enum Commands {
@@ -35,32 +35,40 @@ enum Commands {
 struct CliCommands {
     #[clap(short = 'c', long, default_value = "")]
     config: String,
+    #[clap(short = 't', long, default_value = "")]
+    token: String,
     #[clap(subcommand)]
     command: Commands,
 }
 
 async fn main_fn() -> Result<(), Box<dyn std::error::Error>> {
     let args = CliCommands::parse();
-    let ck_config = ensure_toml_config(&args.config)?;
+    let mut ck_config = ensure_toml_config(&args.config)?;
+    let mut p = dirs::home_dir().unwrap();
+    p.push(".ck-cli.toml");
 
     match &args.command {
         Commands::Login {} => {
-            // TODO: interactive
-            // 1: phone number / email
-            let auth_prompt_data = get_auth_from_prompt()?;
-            // 2: image verification
-            // 3: sms code check
-            // 4: receive auth response
-            // 5: save to local config
-            blue_ln!(" 💪  working on it")
-        }
-        Commands::Parse {
-            input,
-            output,
-        } => {
-            let mut input_data: String = String::new();
+            if args.token.is_empty() {
+                e_red_ln!(" ❌ token not found \n visit https://clippingkk.annatarhe.com and login \n then navigate to your profile page and open `API Token` dialog. \n Copy it and paste to this cli.");
+                process::exit(255);
+            }
+            ck_config = ck_config.update_token(&args.token)?;
+            ck_config.save(&p.clone())?;
 
-            if !input.eq("") {
+            green_ln!(" ✅ logged. you can synchronize your `My Clippings.txt` by run command \n $ ck-cli parse --input /path/to/My Clippings.txt --output http")
+        }
+        Commands::Parse { input, output } => {
+            let ckc = ck_config.clone();
+            let mut ckh = ckc.http.clone();
+            if !args.token.is_empty() {
+                ck_config = ck_config.update_token(&args.token)?;
+                let nc = ck_config.save(&p.clone())?;
+                ckh = nc.http;
+            }
+
+            let mut input_data: String = String::new();
+            if !input.is_empty() {
                 input_data = std::fs::read_to_string(input)?;
             } else {
                 io::stdin().read_to_string(&mut input_data)?;
@@ -81,7 +89,7 @@ async fn main_fn() -> Result<(), Box<dyn std::error::Error>> {
             if output.is_empty() {
                 io::stdout().write(out.as_bytes())?;
             } else if output.starts_with("http") {
-                http::sync_to_server(&output, &ck_config.http, &result_obj).await?;
+                http::sync_to_server(&output, &ckh, &result_obj).await?;
             } else {
                 std::fs::write(output, out)?;
             }

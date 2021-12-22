@@ -8,15 +8,50 @@ use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct CKConfig {
     pub http: Option<CKConfigHttp>,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct CKConfigHttp {
     pub endpoint: Option<String>,
     pub headers: Option<HashMap<String, String>>,
+}
+
+impl CKConfig {
+    pub fn update_token(self, new_token: &String) -> Result<CKConfig, Box<dyn Error>> {
+        let http_endpoint: String;
+        let mut http_headers: HashMap<String, String>;
+
+        if let Some(h) = self.http {
+            http_endpoint = h.endpoint.unwrap_or(CK_ENDPOINT.to_string());
+            http_headers = h.headers.unwrap_or(HashMap::new());
+        } else {
+            http_endpoint = CK_ENDPOINT.to_string();
+            http_headers = HashMap::new();
+        }
+
+        let mut token_val = String::from("X-CLI ");
+        token_val.push_str(new_token);
+
+        http_headers.insert(String::from("Authorization"), token_val.clone());
+
+        let new_config = CKConfig {
+            http: Some(CKConfigHttp {
+                endpoint: Some(http_endpoint),
+                headers: Some(http_headers),
+            }),
+        };
+
+        Ok(new_config)
+    }
+
+    pub fn save(self, file_path: &Path) -> Result<CKConfig, Box<dyn Error>> {
+        let empty_data = toml::to_string(&self)?;
+        fs::write(file_path, empty_data)?;
+        Ok(self)
+    }
 }
 
 fn create_empty_config(file_path: &Path) -> Result<CKConfig, Box<dyn Error>> {
@@ -26,9 +61,7 @@ fn create_empty_config(file_path: &Path) -> Result<CKConfig, Box<dyn Error>> {
             headers: None,
         }),
     };
-    let empty_data = toml::to_string(&empty_config)?;
-    fs::write(file_path, empty_data)?;
-    Ok(empty_config)
+    empty_config.save(file_path)
 }
 
 pub fn ensure_toml_config(config_path: &String) -> Result<CKConfig, Box<dyn Error>> {

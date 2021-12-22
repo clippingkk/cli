@@ -8,6 +8,8 @@ download latest version from [release page](https://github.com/clippingkk/cli/re
 
 ## Usage
 
+### Parse
+
 ```bash
 ck-cli parse -i /path/to/My Clippings.txt -o /path/output.json
 cat My Clippings.txt | ck-cli -o /path/output.json
@@ -43,6 +45,26 @@ cat ./core/clippings_en.txt | ck-cli parse | jq .[].title | sort | uniq
 # "凤凰项目 一个IT运维的传奇故事"
 # "论法的精神"
 ```
+### Compose with ClippingKK Http Service
+
+you can pass cli token to local config
+
+```bash
+ck-cli --token "COPY FROM https://clippingkk.annatarhe.com" login
+cat ~/.ck-cli.toml
+```
+
+You can also just parse file and put it to server with token for once:
+
+```bash
+ck-cli parse --input /path/to/My Clippings.txt --output http
+```
+
+the `http` in `output` is magic word and it will send parsed clippings to server.
+
+you can manually define where should it send and the http request headers by edit config in `~/.ck-cli.toml`
+
+If you want integration with CI service, you can set config as secret. and to do something you want
 
 ## Contributing
 

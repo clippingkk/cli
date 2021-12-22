@@ -123,7 +123,8 @@ pub async fn sync_to_server(
                     .json(&payload)
                     .send()
                     .await?;
-                resp.text().await
+                let r = resp.error_for_status()?;
+                r.text().await
             })
         })
         .buffer_unordered(PARALLEL_REQUESTS);
