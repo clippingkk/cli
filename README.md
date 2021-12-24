@@ -12,8 +12,8 @@ download latest version from [release page](https://github.com/clippingkk/cli/re
 
 ```bash
 ck-cli parse -i /path/to/My Clippings.txt -o /path/output.json
-cat My Clippings.txt | ck-cli -o /path/output.json
-cat My Clippings.txt | ck-cli > file.json
+cat My Clippings.txt | ck-cli parse -o /path/output.json
+cat My Clippings.txt | ck-cli parse > file.json
 ```
 
 Arguments:
