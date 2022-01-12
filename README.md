@@ -2,7 +2,6 @@
 
 `ck-cli`(clippingkk-cli) is a TUI(Terminal User Interface) to parse `My Clippings.txt` that clippings in Amazon Kindle to user friendly data struct.
 
-![video guide](https://youtu.be/y4pgU9zIpxA)
 [![video guide](http://img.youtube.com/vi/y4pgU9zIpxA/0.jpg)](http://www.youtube.com/watch?v=y4pgU9zIpxA "ClippingKK 命令行工具上传使用")
 
 ## Installation
