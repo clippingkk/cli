@@ -1,9 +1,8 @@
 #[macro_use]
 extern crate colour;
 
-use crate::auth::get_auth_from_prompt;
 use crate::config::ensure_toml_config;
-use clap::{AppSettings, Parser, Subcommand};
+use clap::{Parser, Subcommand};
 use std::io;
 use std::io::prelude::*;
 use std::process;
