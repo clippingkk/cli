@@ -128,8 +128,14 @@ fn parse_info(
     if matched.is_none() {
         return Err("location not found".into());
     }
-    let mut page_at = "#".to_owned();
-    page_at.push_str(matched.unwrap().get(0).unwrap().as_str());
+    let page_at_str = matched.unwrap().get(0).unwrap().as_str();
+
+    let page_at = if page_at_str.starts_with("#") {
+        page_at_str.to_string()
+    } else {
+        ("#".to_owned() + page_at_str).to_string()
+    };
+
     let dt: chrono::NaiveDateTime;
 
     let date_section = ls[ls.len() - 1]
