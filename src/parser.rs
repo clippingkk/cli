@@ -126,7 +126,7 @@ fn parse_info(
 
     let matched = location_regex.captures(location_section);
     if matched.is_none() {
-        let dt = chrono::NaiveDateTime::parse_from_str(r#"1970-01-01 00:00:00 am"#, "%Y-%m-%e %l:%M:%S %p").unwrap();
+        let dt = chrono::NaiveDateTime::parse_from_str(r#"1970-01-01 00:00:00"#, "%Y-%m-%e %H:%M:%S").unwrap();
         return Ok(("".to_string(), dt));
     }
     let page_at_str = matched.unwrap().get(0).unwrap().as_str();
