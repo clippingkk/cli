@@ -8,6 +8,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: boa-dev/criterion-compare-action@v3
         with:
+          benchName: "parse"
           # Needed. The name of the branch to compare with. This default uses the branch which is being pulled against
           branchName: ${{ github.base_ref }}
           # Optional. Default is `${{ github.token }}`.
