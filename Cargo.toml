@@ -21,3 +21,10 @@ toml = "0.8"
 dirs = "5.0.1"
 inquire = "0.6.2"
 viuer = "0.7.1"
+
+[dev-dependencies]
+criterion = { version = "0.4", features = ["html_reports"] }
+
+[[bench]]
+name = "parse"
+harness = false

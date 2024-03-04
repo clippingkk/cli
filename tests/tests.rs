@@ -1,6 +1,6 @@
 extern crate ck_cli;
 use serde_json;
-use std::{env, fs};
+use std::env;
 use std::fs::File;
 use std::io::prelude::*;
 
