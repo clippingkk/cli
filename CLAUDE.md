@@ -111,3 +111,7 @@ cargo run -- parse --input "/path/to/My Clippings.txt" --output http
 - Language detection is based on regex pattern matching of clipping headers
 - HTTP client reuses connections for batch uploads
 - Configuration persists between sessions in TOML format
+
+## Commit Guidelines
+
+- The commit message must fit with Conventional Commits rules, and follow scopes (feat, fix, refactor, perf)
