@@ -176,7 +176,9 @@ func outputToFile(filename string, clippings interface{}) error {
 		// Try to marshal and count
 		data, _ := json.Marshal(clippings)
 		var temp []interface{}
-		json.Unmarshal(data, &temp)
+		if err := json.Unmarshal(data, &temp); err != nil {
+			return err
+		}
 		count = len(temp)
 	}
 
