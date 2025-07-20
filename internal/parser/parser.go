@@ -22,15 +22,15 @@ const (
 
 var (
 	// BOM pattern for UTF-8 BOM removal
-	bomPattern = regexp.MustCompile(`\ufeff`)
-	
+	bomPattern = regexp.MustCompile("\ufeff")
+
 	// Location patterns for different languages
 	englishLocationPattern = regexp.MustCompile(`\d+(-?\d+)?`)
 	chineseLocationPattern = regexp.MustCompile(`#?\d+(-?\d+)?`)
-	
+
 	// Chinese character detection pattern
 	chinesePattern = regexp.MustCompile(`[\x{4E00}-\x{9FFF}\x{3000}-\x{303F}]`)
-	
+
 	// Date parsing patterns for different languages
 	englishDateFormat = "Monday, January 2, 2006 3:4:5 PM"
 	chineseDateFormat = "2006-1-2 3:4:5 PM"
@@ -100,7 +100,7 @@ func detectLanguage(input string) Language {
 // splitIntoGroups splits the input into clipping groups using the separator
 func splitIntoGroups(input string) [][]string {
 	const separator = "========"
-	
+
 	lines := strings.Split(input, "\n")
 	var groups [][]string
 	var currentGroup []string
@@ -187,7 +187,7 @@ func parseInfo(line string, language Language) (string, time.Time, error) {
 	// Parse location
 	locationSection := strings.TrimSpace(parts[0])
 	var locationPattern *regexp.Regexp
-	
+
 	switch language {
 	case LanguageEnglish:
 		locationPattern = englishLocationPattern
@@ -248,12 +248,12 @@ func parseChineseDate(dateStr string) (time.Time, error) {
 
 	// Replace Chinese characters with separators
 	dateStr = chinesePattern.ReplaceAllString(dateStr, "-")
-	
+
 	// Remove multiple dashes
 	multipleDashPattern := regexp.MustCompile(`-{2,}`)
 	dateStr = multipleDashPattern.ReplaceAllString(dateStr, "")
 	dateStr = strings.TrimSpace(dateStr)
-	
+
 	// Add AM/PM suffix
 	dateStr = dateStr + " " + ampm
 

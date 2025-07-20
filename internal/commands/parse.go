@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -15,8 +16,8 @@ import (
 
 // ParseCommand handles parsing Kindle clippings
 var ParseCommand = &cli.Command{
-	Name:    "parse",
-	Usage:   "Parse Kindle clippings file and output structured data",
+	Name:  "parse",
+	Usage: "Parse Kindle clippings file and output structured data",
 	Description: `Parse Amazon Kindle's "My Clippings.txt" file into structured JSON format.
 
 The command can read from:
@@ -104,7 +105,7 @@ func parseAction(c *cli.Context) error {
 
 	// Handle output
 	outputTarget := c.String("output")
-	
+
 	if outputTarget == "" {
 		// Output to stdout as JSON
 		return outputJSON(os.Stdout, clippings)
@@ -146,7 +147,7 @@ func readInput(inputPath string) (string, error) {
 func outputJSON(writer io.Writer, clippings interface{}) error {
 	encoder := json.NewEncoder(writer)
 	encoder.SetIndent("", "  ")
-	
+
 	if err := encoder.Encode(clippings); err != nil {
 		return fmt.Errorf("failed to encode JSON: %w", err)
 	}
@@ -183,7 +184,7 @@ func outputToFile(filename string, clippings interface{}) error {
 	return nil
 }
 
-// syncToServer syncs clippings to ClippingKK service  
+// syncToServer syncs clippings to ClippingKK service
 func syncToServer(ctx context.Context, cfg *config.Config, clippings interface{}, endpoint string) error {
 	// Check if we have authentication
 	if !cfg.HasToken() {
@@ -193,25 +194,25 @@ func syncToServer(ctx context.Context, cfg *config.Config, clippings interface{}
 	}
 
 	httpClient := http.NewClient(cfg)
-	
+
 	// Convert to proper type for HTTP client
 	jsonData, err := json.Marshal(clippings)
 	if err != nil {
 		return fmt.Errorf("failed to marshal clippings: %w", err)
 	}
-	
+
 	var clippingItems []map[string]interface{}
 	if err := json.Unmarshal(jsonData, &clippingItems); err != nil {
 		return fmt.Errorf("failed to unmarshal clippings: %w", err)
 	}
 
 	fmt.Fprintf(os.Stderr, "🚀 Starting sync to ClippingKK service...\n")
-	
+
 	// For now, just report success - the HTTP client will be enhanced later
 	fmt.Fprintf(os.Stderr, "✅ Successfully synced %d clippings to ClippingKK!\n", len(clippingItems))
-	
+
 	// TODO: Implement actual HTTP sync using httpClient.SyncToServer
 	_ = httpClient // Suppress unused variable warning
-	
+
 	return nil
 }
