@@ -6,26 +6,7 @@ High-performance command-line tool for parsing Kindle clippings into structured 
 
 ## Installation
 
-### Homebrew (macOS/Linux)
-```bash
-brew install clippingkk/ck-cli/ck-cli
-```
-
-### Binary
-Download from [releases](https://github.com/clippingkk/cli/releases) or use package managers:
-- **Debian/Ubuntu**: `sudo dpkg -i ck-cli_*.deb`
-- **RHEL/Fedora**: `sudo rpm -i ck-cli_*.rpm`
-- **Arch**: `yay -S ck-cli-bin`
-
-### Go
-```bash
-go install github.com/clippingkk/cli/cmd/ck-cli@latest
-```
-
-### Docker
-```bash
-docker pull ghcr.io/clippingkk/ck-cli:latest
-```
+go to release page and download one.
 
 ## Usage
 
@@ -67,7 +48,7 @@ Configuration stored in `~/.ck-cli.toml`.
 
 ## Development
 
-**Requirements:** Go 1.21+
+**Requirements:** Go 1.24+
 
 ```bash
 git clone https://github.com/clippingkk/cli.git
@@ -88,11 +69,6 @@ See [Makefile](./Makefile) for all commands.
 - Cross-platform (macOS, Linux, Windows)
 
 ## Contributing
-
-Contributions welcome. Please follow [Conventional Commits](https://www.conventionalcommits.org/) format:
-- `feat(scope): description`
-- `fix(scope): description`
-- `docs: description`
 
 See [CLAUDE.md](./CLAUDE.md) for development guidelines.
 
