@@ -9,8 +9,12 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: 1.24
-      - name: Run tests
-        run: go test ./...
+      - name: Run tests with coverage
+        run: go test -timeout 3m -coverprofile=coverage.txt -covermode=atomic ./...
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_CLI_TOKEN }}
       - name: Run linter
         uses: golangci/golangci-lint-action@v6
         with:
