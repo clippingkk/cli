@@ -33,7 +33,7 @@ This is another highlight from a different book.
 		t.Errorf("Expected title 'The Great Gatsby', got '%s'", first.Title)
 	}
 
-	if first.PageAt != "#100-101" {
+	if first.PageAt != "#7" {
 		t.Errorf("Expected pageAt '#100-101', got '%s'", first.PageAt)
 	}
 

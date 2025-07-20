@@ -5,7 +5,6 @@ import (
 	"regexp"
 	"strings"
 	"time"
-	"unicode/utf8"
 
 	"github.com/clippingkk/cli/internal/models"
 )
@@ -258,12 +257,4 @@ func parseChineseDate(dateStr string) (time.Time, error) {
 	dateStr = dateStr + " " + ampm
 
 	return time.Parse(chineseDateFormat, dateStr)
-}
-
-// validateUTF8 checks if the input is valid UTF-8
-func validateUTF8(input string) error {
-	if !utf8.ValidString(input) {
-		return fmt.Errorf("input is not valid UTF-8")
-	}
-	return nil
 }
