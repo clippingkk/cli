@@ -1,3 +1,5 @@
+name: CI
+
 on:
   push:
     branches:
@@ -6,23 +8,21 @@ on:
     branches:
       - master
 
-name: Code Coverage
-
 jobs:
   test:
-    name: coverage
+    name: Test and Coverage
     runs-on: ubuntu-latest
-    container:
-      image: xd009642/tarpaulin:develop-nightly
-      options: --security-opt seccomp=unconfined
     steps:
       - uses: actions/checkout@v4
-      - name: Generate code coverage
-        run: |
-          cargo +nightly tarpaulin --verbose --all-features --workspace --timeout 120 --out Xml
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+      - name: Run tests with coverage
+        run: go test -race -coverprofile=coverage.out -covermode=atomic ./...
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
         with:
           token: ${{ secrets.CODECOV_CLI_TOKEN }}
+          file: ./coverage.out
           flags: unittests
           name: codecov-umbrella

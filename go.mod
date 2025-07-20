@@ -1,6 +1,6 @@
 module github.com/clippingkk/cli
 
-go 1.21
+go 1.24
 
 require (
 	github.com/pelletier/go-toml/v2 v2.1.1

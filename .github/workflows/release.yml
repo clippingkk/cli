@@ -1,34 +1,49 @@
-# .github/workflows/release.yml
-name: release-artifacts
+name: Release
 
 on:
-  release:
-    types: [created]
+  push:
+    branches:
+      - master
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
 
 jobs:
-  release:
-    name: release ${{ matrix.target }}
+  goreleaser:
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - target: x86_64-pc-windows-gnu
-            archive: zip
-          - target: x86_64-unknown-linux-musl
-            archive: tar.gz tar.xz
-          - target: x86_64-apple-darwin
-            archive: zip
-          - target: aarch64-apple-darwin
-            archive: zip
     steps:
-      - uses: actions/checkout@master
-      - name: Compile and release
-        uses: rust-build/rust-build.action@latest
+      - uses: googleapis/release-please-action@v4
+        id: release
         with:
-          RUSTTARGET: ${{ matrix.target }}
-          EXTRA_FILES: "README.md LICENSE"
+          token: ${{ secrets.GITHUB_TOKEN }}
+          release-type: go
+      
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - run: git fetch --force --tags
+      
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+      
+      - name: Test
+        run: go test -timeout 3m -coverprofile=coverage.txt -covermode=atomic ./...
+      
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_CLI_TOKEN }}
+      
+      - uses: goreleaser/goreleaser-action@v6
+        if: ${{ steps.release.outputs.release_created }}
+        with:
+          distribution: goreleaser
+          version: "~> v2"
+          args: release --clean
         env:
+          VERSION: ${{ steps.release.outputs.tag_name }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RUSTTARGET: ${{ matrix.target }}
-          ARCHIVE_TYPES: ${{ matrix.archive }}
