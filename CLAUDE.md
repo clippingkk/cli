@@ -4,7 +4,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-ClippingKK CLI (`ck-cli`) is a Go-based command-line tool that parses Amazon Kindle's "My Clippings.txt" file into structured JSON format. It supports synchronization with the ClippingKK web service for cloud storage of reading highlights.
+`ck-cli` (ClippingKK CLI) is a high-performance command-line tool written in Go that parses Amazon Kindle's `My Clippings.txt` file into structured JSON format and syncs highlights to the ClippingKK web service.
+
+### Key Features
+- **Multi-language Support**: Parses clippings in Chinese, English, and other languages
+- **Flexible I/O**: Read from files or stdin, output to files, stdout, or sync to web
+- **High Performance**: Optimized parser handles large clipping files efficiently
+- **Cloud Sync**: Direct integration with ClippingKK web service via GraphQL
+- **Cross-Platform**: Works on macOS, Linux, and Windows
+- **Structured Output**: Clean JSON format for easy processing
 
 ## Key Commands
 
@@ -51,8 +59,11 @@ make build-all
 
 # Build for specific platforms
 make build-linux
-make build-windows
+make build-windows  
 make build-macos
+
+# Install development dependencies
+make dev-setup
 
 # Release with GoReleaser
 make release-dry    # dry run
@@ -91,6 +102,9 @@ cat "My Clippings.txt" | ck-cli parse
 # Sync to ClippingKK web service (requires login first)
 ck-cli login --token "YOUR_TOKEN"
 ck-cli parse --input "/path/to/My Clippings.txt" --output http
+
+# Compose with Unix tools
+cat ./My\ Clippings.txt | ck-cli parse | jq .[].title | sort | uniq
 ```
 
 ## Architecture and Code Structure
@@ -199,9 +213,52 @@ internal/
 
 ## Commit Guidelines
 
-- The commit message must fit with Conventional Commits rules
+- Follow [Conventional Commits](https://www.conventionalcommits.org/) format
 - Use scopes: `feat`, `fix`, `refactor`, `perf`, `test`, `docs`, `build`
 - Examples:
   - `feat(parser): add support for Japanese clippings`
   - `fix(http): handle network timeouts properly`
   - `refactor(config): simplify TOML configuration`
+  - `docs: update installation instructions`
+  - `test(parser): add edge case for malformed dates`
+  - `perf(http): optimize concurrent upload performance`
+  - `build: update Go version to 1.21`
+
+### Pull Request Process
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Write tests for your changes
+4. Ensure all tests pass (`make test`)
+5. Run linter (`make lint`)
+6. Format code (`make fmt`)
+7. Commit using Conventional Commits format
+8. Push to your branch and open a Pull Request
+
+## Error Handling Best Practices
+
+- Always wrap errors with context using `fmt.Errorf("context: %w", err)`
+- Check errors immediately after function calls
+- Use early returns for error conditions
+- Provide meaningful error messages that help debugging
+
+## Common Tasks
+
+### Adding a New Command
+1. Create a new file in `internal/commands/`
+2. Implement the command following the pattern in existing commands
+3. Register the command in `cmd/ck-cli/main.go`
+4. Add tests in `internal/commands/*_test.go`
+5. Update documentation
+
+### Modifying the Parser
+1. Update regex patterns in `internal/parser/parser.go`
+2. Add test cases to `internal/parser/parser_test.go`
+3. Test with real clipping files in multiple languages
+4. Ensure backward compatibility
+
+### Updating GraphQL Schema
+1. Modify queries/mutations in `internal/http/client.go`
+2. Update request/response structs
+3. Test against the live API
+4. Handle API errors gracefully
