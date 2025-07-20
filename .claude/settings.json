@@ -9,6 +9,7 @@
       "Bash(npx eslint:*)",
       "Bash(go install:*)",
       "Bash(go build:*)",
+      "Bash(go mod:*)",
       "Bash(go test:*)",
       "Bash(gh pr create:*)"
     ],
