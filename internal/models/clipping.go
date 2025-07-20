@@ -21,7 +21,7 @@ func (c ClippingItem) MarshalJSON() ([]byte, error) {
 		CreatedAt string `json:"createdAt"`
 	}{
 		Alias:     (*Alias)(&c),
-		CreatedAt: c.CreatedAt.UTC().Format(time.RFC3339),
+		CreatedAt: c.CreatedAt.UTC().Format("2006-01-02T15:04:05+00:00"),
 	})
 }
 
@@ -61,7 +61,7 @@ func (c ClippingItem) ToClippingInput() ClippingInput {
 		Content:   c.Content,
 		BookID:    "0", // Default book ID
 		PageAt:    c.PageAt,
-		CreatedAt: c.CreatedAt.UTC().Format(time.RFC3339),
+		CreatedAt: c.CreatedAt.UTC().Format("2006-01-02T15:04:05+00:00"),
 		Source:    "kindle",
 	}
 }

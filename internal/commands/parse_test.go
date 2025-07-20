@@ -51,11 +51,11 @@ func TestParseAllFixtures(t *testing.T) {
 		txtFile    string
 		resultFile string
 	}{
-		{"English", "fixtures/clippings_en.txt", "fixtures/clippings_en.result.json"},
-		{"Chinese", "fixtures/clippings_zh.txt", "fixtures/clippings_zh.result.json"},
-		{"Other", "fixtures/clippings_other.txt", "fixtures/clippings_other.result.json"},
-		{"Rare", "fixtures/clippings_rare.txt", "fixtures/clippings_rare.result.json"},
-		{"Ric", "fixtures/clippings_ric.txt", "fixtures/clippings_ric.result.json"},
+		{"English", "../../fixtures/clippings_en.txt", "../../fixtures/clippings_en.result.json"},
+		{"Chinese", "../../fixtures/clippings_zh.txt", "../../fixtures/clippings_zh.result.json"},
+		{"Other", "../../fixtures/clippings_other.txt", "../../fixtures/clippings_other.result.json"},
+		{"Rare", "../../fixtures/clippings_rare.txt", "../../fixtures/clippings_rare.result.json"},
+		{"Ric", "../../fixtures/clippings_ric.txt", "../../fixtures/clippings_ric.result.json"},
 	}
 
 	for _, tc := range testCases {
@@ -142,7 +142,7 @@ func TestParseAllFixtures(t *testing.T) {
 // TestParseFixturesDiscovery automatically discovers all fixture files
 func TestParseFixturesDiscovery(t *testing.T) {
 	// Get all .txt files in fixtures directory
-	txtFiles, err := filepath.Glob("fixtures/*.txt")
+	txtFiles, err := filepath.Glob("../../fixtures/*.txt")
 	if err != nil {
 		t.Fatalf("Failed to find fixture files: %v", err)
 	}
@@ -227,11 +227,11 @@ func TestParseFixturesJSON(t *testing.T) {
 		txtFile    string
 		resultFile string
 	}{
-		{"English", "fixtures/clippings_en.txt", "fixtures/clippings_en.result.json"},
-		{"Chinese", "fixtures/clippings_zh.txt", "fixtures/clippings_zh.result.json"},
-		{"Other", "fixtures/clippings_other.txt", "fixtures/clippings_other.result.json"},
-		{"Rare", "fixtures/clippings_rare.txt", "fixtures/clippings_rare.result.json"},
-		{"Ric", "fixtures/clippings_ric.txt", "fixtures/clippings_ric.result.json"},
+		{"English", "../../fixtures/clippings_en.txt", "../../fixtures/clippings_en.result.json"},
+		{"Chinese", "../../fixtures/clippings_zh.txt", "../../fixtures/clippings_zh.result.json"},
+		{"Other", "../../fixtures/clippings_other.txt", "../../fixtures/clippings_other.result.json"},
+		{"Rare", "../../fixtures/clippings_rare.txt", "../../fixtures/clippings_rare.result.json"},
+		{"Ric", "../../fixtures/clippings_ric.txt", "../../fixtures/clippings_ric.result.json"},
 	}
 
 	for _, tc := range testCases {

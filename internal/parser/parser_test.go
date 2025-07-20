@@ -33,8 +33,8 @@ This is another highlight from a different book.
 		t.Errorf("Expected title 'The Great Gatsby', got '%s'", first.Title)
 	}
 
-	if first.PageAt != "#100-101" {
-		t.Errorf("Expected pageAt '#100-101', got '%s'", first.PageAt)
+	if first.PageAt != "#7" {
+		t.Errorf("Expected pageAt '#7', got '%s'", first.PageAt)
 	}
 
 	expectedContent := "In his blue gardens men and girls came and went like moths among the whisperings and the champagne and the stars."
