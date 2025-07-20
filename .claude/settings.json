@@ -11,6 +11,7 @@
       "Bash(go build:*)",
       "Bash(go mod:*)",
       "Bash(go test:*)",
+      "Bash(go run:*)",
       "Bash(gh pr create:*)"
     ],
     "deny": []
