@@ -1,0 +1,20 @@
+{
+  "release-type": "node",
+  "packages": {
+    ".": {
+      "package-name": "ck-cli",
+      "changelog-sections": [
+        { "type": "feat", "section": "New Features" },
+        { "type": "fix", "section": "Bug Fixes" },
+        { "type": "perf", "section": "Performance Improvements" },
+        { "type": "refactor", "section": "Refactors" },
+        { "type": "docs", "section": "Documentation", "hidden": true },
+        { "type": "test", "section": "Tests", "hidden": true },
+        { "type": "ci", "section": "CI/CD", "hidden": true },
+        { "type": "chore", "section": "Chores", "hidden": true },
+        { "type": "build", "section": "Build System" }
+      ]
+    }
+  },
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json"
+}
