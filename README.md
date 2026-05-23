@@ -22,18 +22,23 @@ cat "My Clippings.txt" | ck-cli parse | jq -r .[].title | sort -u
 ```
 
 **Options:**
+
 - `-i, --input`: Input file path (default: stdin)
 - `-o, --output`: Output file path or `http` for web sync (default: stdout)
 
 **Output format:**
+
 ```json
-[{
-  "title": "Book Title",
-  "content": "Highlighted text",
-  "pageAt": "78",
-  "createdAt": "2019-03-27T19:57:26Z"
-}]
+[
+  {
+    "title": "Book Title",
+    "content": "Highlighted text",
+    "pageAt": "78",
+    "createdAt": "2019-03-27T19:57:26Z"
+  }
+]
 ```
+
 ### Web Sync
 
 ```bash
@@ -48,29 +53,37 @@ Configuration stored in `~/.ck-cli.toml`.
 
 ## Development
 
-**Requirements:** Go 1.24+
+**Requirements:** [Bun](https://bun.com) 1.3+
 
 ```bash
 git clone https://github.com/clippingkk/cli.git
 cd cli
-make build    # Build binary
-make test     # Run tests
-make lint     # Run linter
+bun install
+bun run dev parse --input "My Clippings.txt"   # Run from source
+
+bun test                                        # Run tests
+bun run lint                                    # oxlint
+bun run format                                  # oxfmt
+bun run typecheck                               # tsc --noEmit
+bun run build                                   # Build local-platform binary
+bun run build:all -- --archive                  # Build all platforms + archives
 ```
 
-See [Makefile](./Makefile) for all commands.
+The CLI bundles to a single self-contained binary per platform via `bun build --compile`.
 
 ## Features
 
 - Multi-language parsing (Chinese, English, etc.)
 - Flexible I/O (files, stdin/stdout, web sync)
 - High-performance processing of large files
-- Direct ClippingKK web service integration
-- Cross-platform (macOS, Linux, Windows)
+- Direct ClippingKK web service integration via chunked GraphQL uploads
+- Cross-platform (macOS, Linux, Windows) — self-contained binaries
+- Built with TypeScript on the [Bun](https://bun.com) runtime
 
 ## Contributing
 
 See [CLAUDE.md](./CLAUDE.md) for development guidelines.
 
 ## License
+
 [MIT](https://choosealicense.com/licenses/mit/)

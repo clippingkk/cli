@@ -1,35 +1,22 @@
-# Build stage
-FROM golang:1.21-alpine AS builder
-
-# Install ca-certificates for SSL
-RUN apk add --no-cache ca-certificates git
-
-# Set working directory
+FROM oven/bun:1-alpine AS builder
 WORKDIR /app
+COPY package.json bun.lock* ./
+RUN bun install --frozen-lockfile
+COPY tsconfig.json ./
+COPY src ./src
+COPY scripts ./scripts
+RUN bun build \
+    --compile \
+    --target=bun-linux-x64-musl \
+    --define CK_VERSION='"docker"' \
+    --define CK_COMMIT='"docker"' \
+    --define process.env.DEV='"false"' \
+    --minify \
+    --sourcemap=none \
+    --outfile=ck-cli \
+    ./src/main.tsx
 
-# Copy go mod files
-COPY go.mod go.sum ./
-
-# Download dependencies
-RUN go mod download
-
-# Copy source code
-COPY . .
-
-# Build the application
-RUN CGO_ENABLED=0 GOOS=linux go build \
-    -ldflags="-s -w" \
-    -o ck-cli \
-    ./cmd/ck-cli
-
-# Final stage
-FROM scratch
-
-# Copy ca-certificates from builder
-COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
-
-# Copy the binary
-COPY --from=builder /app/ck-cli /ck-cli
-
-# Set the entrypoint
-ENTRYPOINT ["/ck-cli"]
+FROM alpine:latest
+RUN apk add --no-cache ca-certificates
+COPY --from=builder /app/ck-cli /usr/local/bin/ck-cli
+ENTRYPOINT ["/usr/local/bin/ck-cli"]
