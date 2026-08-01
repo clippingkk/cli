@@ -15,7 +15,7 @@ import (
 var (
 	// Version is set at build time
 	Version = "dev"
-	// Commit is set at build time  
+	// Commit is set at build time
 	Commit = "unknown"
 )
 
@@ -60,6 +60,7 @@ func main() {
 		Commands: []*cli.Command{
 			commands.LoginCommand,
 			commands.ParseCommand,
+			commands.SDRCommand,
 		},
 		Before: func(c *cli.Context) error {
 			// Inject global configuration context
