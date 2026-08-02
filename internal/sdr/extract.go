@@ -13,6 +13,11 @@ type bookCandidate struct {
 	sidecarDir string
 }
 
+type extractionStats struct {
+	annotationCount int
+	warnings        []string
+}
+
 // ExtractPath discovers Kindle book/sidecar pairs beneath path and extracts
 // all supported text annotations. It never writes to the source tree.
 func ExtractPath(path string) (Report, error) {
@@ -30,8 +35,9 @@ func ExtractPath(path string) (Report, error) {
 		return Report{}, err
 	}
 	report := Report{Warnings: discoveryWarnings}
+	extracted := 0
 	for _, candidate := range candidates {
-		result, err := extractCandidate(candidate)
+		result, stats, err := extractCandidate(candidate)
 		if err != nil {
 			if direct {
 				return Report{}, err
@@ -41,12 +47,30 @@ func ExtractPath(path string) (Report, error) {
 		}
 		report.Decoded++
 		report.Books = append(report.Books, result)
+		report.Warnings = append(report.Warnings, stats.warnings...)
+		extracted += len(result.Highlights)
+		if stats.annotationCount == 0 {
+			sidecarType := ".azw3r"
+			if strings.EqualFold(filepath.Ext(candidate.bookPath), ".kfx") {
+				sidecarType = ".yjr"
+			}
+			report.Warnings = append(report.Warnings, fmt.Sprintf(
+				"%s: annotation cache is empty; no local highlight positions exist in the %s files (sync and open the book on the Kindle before copying it, or use documents/My Clippings.txt)",
+				candidate.sidecarDir, sidecarType))
+		} else if len(result.Highlights) == 0 {
+			report.Warnings = append(report.Warnings, fmt.Sprintf(
+				"%s: parsed %d text annotations, but none could be resolved against %s",
+				candidate.sidecarDir, stats.annotationCount, filepath.Base(candidate.bookPath)))
+		}
 	}
 	if report.Decoded == 0 {
 		if len(report.Warnings) > 0 {
 			return report, fmt.Errorf("no supported Kindle sidecar pairs could be decoded")
 		}
 		return report, fmt.Errorf("no supported Kindle sidecar pairs found under %s", path)
+	}
+	if extracted == 0 {
+		return report, fmt.Errorf("no highlighted text could be extracted from %s", path)
 	}
 	return report, nil
 }
@@ -158,6 +182,10 @@ func sidecarFormats(directory string) (hasAZW3R, hasYJR bool) {
 			hasAZW3R = true
 		case ".yjr":
 			hasYJR = true
+		default:
+			if strings.HasSuffix(strings.ToLower(entry.Name()), ".yjr.bad_file") {
+				hasYJR = true
+			}
 		}
 	}
 	return hasAZW3R, hasYJR
@@ -172,40 +200,67 @@ func supportedBookExtension(extension string) bool {
 	}
 }
 
-func extractCandidate(candidate bookCandidate) (BookResult, error) {
+func extractCandidate(candidate bookCandidate) (BookResult, extractionStats, error) {
 	bookExtension := strings.ToLower(filepath.Ext(candidate.bookPath))
-	sidecarPaths, err := findSidecarFiles(candidate.sidecarDir, bookExtension)
+	sidecarPaths, fallbackPaths, err := findSidecarFiles(candidate.sidecarDir, bookExtension)
 	if err != nil {
-		return BookResult{}, err
+		return BookResult{}, extractionStats{}, err
 	}
 	merged := Sidecar{}
 	seenAnnotations := make(map[string]struct{})
-	for _, path := range sidecarPaths {
-		data, err := os.ReadFile(path)
-		if err != nil {
-			return BookResult{}, fmt.Errorf("read %s: %w", filepath.Base(path), err)
-		}
-		decoded, err := DecodeSidecar(data)
-		if err != nil {
-			return BookResult{}, fmt.Errorf("decode %s: %w", filepath.Base(path), err)
-		}
-		if len(merged.PageMap.Positions) == 0 && len(decoded.PageMap.Positions) > 0 {
-			merged.PageMap = decoded.PageMap
-		}
-		for _, annotation := range decoded.Annotations {
-			key := fmt.Sprintf("%s\x00%d\x00%d\x00%d\x00%s", annotation.Type,
-				annotation.StartPosition, annotation.EndPosition, annotation.CreationTime.UnixMilli(), annotation.Note)
-			if _, duplicate := seenAnnotations[key]; duplicate {
+	stats := extractionStats{}
+	decodePaths := func(paths []string, required bool) error {
+		before := len(merged.Annotations)
+		for _, path := range paths {
+			data, err := os.ReadFile(path)
+			if err != nil {
+				if required {
+					return fmt.Errorf("read %s: %w", filepath.Base(path), err)
+				}
+				stats.warnings = append(stats.warnings, fmt.Sprintf("%s: cannot read fallback %s: %v", candidate.sidecarDir, filepath.Base(path), err))
 				continue
 			}
-			seenAnnotations[key] = struct{}{}
-			merged.Annotations = append(merged.Annotations, annotation)
+			decoded, err := DecodeSidecar(data)
+			if err != nil {
+				if required {
+					return fmt.Errorf("decode %s: %w", filepath.Base(path), err)
+				}
+				stats.warnings = append(stats.warnings, fmt.Sprintf("%s: cannot decode fallback %s: %v", candidate.sidecarDir, filepath.Base(path), err))
+				continue
+			}
+			if len(merged.PageMap.Positions) == 0 && len(decoded.PageMap.Positions) > 0 {
+				merged.PageMap = decoded.PageMap
+			}
+			for _, annotation := range decoded.Annotations {
+				key := fmt.Sprintf("%s\x00%d\x00%d\x00%d\x00%s", annotation.Type,
+					annotation.StartPosition, annotation.EndPosition, annotation.CreationTime.UnixMilli(), annotation.Note)
+				if _, duplicate := seenAnnotations[key]; duplicate {
+					continue
+				}
+				seenAnnotations[key] = struct{}{}
+				merged.Annotations = append(merged.Annotations, annotation)
+			}
+		}
+		if !required && len(merged.Annotations) > before {
+			stats.warnings = append(stats.warnings, fmt.Sprintf(
+				"%s: active .yjr cache was empty; recovered annotations from .yjr.bad_file",
+				candidate.sidecarDir))
+		}
+		return nil
+	}
+	if err := decodePaths(sidecarPaths, true); err != nil {
+		return BookResult{}, stats, err
+	}
+	if bookExtension == ".kfx" && len(merged.Annotations) == 0 && len(fallbackPaths) > 0 {
+		if err := decodePaths(fallbackPaths, false); err != nil {
+			return BookResult{}, stats, err
 		}
 	}
+	stats.annotationCount = len(merged.Annotations)
 
 	bookData, err := os.ReadFile(candidate.bookPath)
 	if err != nil {
-		return BookResult{}, fmt.Errorf("read book: %w", err)
+		return BookResult{}, stats, fmt.Errorf("read book: %w", err)
 	}
 	var title string
 	var assembled []byte
@@ -213,13 +268,13 @@ func extractCandidate(candidate bookCandidate) (BookResult, error) {
 	if bookExtension == ".kfx" {
 		kfx, err = assembleKFX(bookData)
 		if err != nil {
-			return BookResult{}, fmt.Errorf("assemble %s: %w", filepath.Base(candidate.bookPath), err)
+			return BookResult{}, stats, fmt.Errorf("assemble %s: %w", filepath.Base(candidate.bookPath), err)
 		}
 		title = kfx.title
 	} else {
 		title, assembled, err = AssembleBook(bookData)
 		if err != nil {
-			return BookResult{}, fmt.Errorf("assemble %s: %w", filepath.Base(candidate.bookPath), err)
+			return BookResult{}, stats, fmt.Errorf("assemble %s: %w", filepath.Base(candidate.bookPath), err)
 		}
 	}
 	if title == "" {
@@ -264,7 +319,7 @@ func extractCandidate(candidate bookCandidate) (BookResult, error) {
 			PageAt: page,
 		})
 	}
-	return result, nil
+	return result, stats, nil
 }
 
 func associateNotes(annotations []Annotation) []Annotation {
@@ -298,12 +353,13 @@ func associateNotes(annotations []Annotation) []Annotation {
 	return filtered
 }
 
-func findSidecarFiles(directory, bookExtension string) ([]string, error) {
+func findSidecarFiles(directory, bookExtension string) ([]string, []string, error) {
 	entries, err := os.ReadDir(directory)
 	if err != nil {
-		return nil, fmt.Errorf("read sidecar directory: %w", err)
+		return nil, nil, fmt.Errorf("read sidecar directory: %w", err)
 	}
 	var paths []string
+	var fallbacks []string
 	wanted := ".azw3r"
 	if bookExtension == ".kfx" {
 		wanted = ".yjr"
@@ -312,13 +368,20 @@ func findSidecarFiles(directory, bookExtension string) ([]string, error) {
 		if entry.IsDir() {
 			continue
 		}
-		if strings.ToLower(filepath.Ext(entry.Name())) == wanted {
+		lowerName := strings.ToLower(entry.Name())
+		if strings.ToLower(filepath.Ext(lowerName)) == wanted {
 			paths = append(paths, filepath.Join(directory, entry.Name()))
+		} else if bookExtension == ".kfx" && strings.HasSuffix(lowerName, ".yjr.bad_file") {
+			fallbacks = append(fallbacks, filepath.Join(directory, entry.Name()))
 		}
 	}
+	if len(paths) == 0 && len(fallbacks) == 0 {
+		return nil, nil, fmt.Errorf("sidecar contains no %s file", wanted)
+	}
 	if len(paths) == 0 {
-		return nil, fmt.Errorf("sidecar contains no %s file", wanted)
+		paths, fallbacks = fallbacks, nil
 	}
 	sort.Strings(paths)
-	return paths, nil
+	sort.Strings(fallbacks)
+	return paths, fallbacks, nil
 }

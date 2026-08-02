@@ -233,11 +233,51 @@ func TestExtractPathKFXEmptyAnnotations(t *testing.T) {
 	}
 
 	report, err := ExtractPath(sidecarDir)
-	if err != nil {
+	if err == nil || !strings.Contains(err.Error(), "no highlighted text") {
 		t.Fatalf("ExtractPath(empty KFX) error = %v", err)
 	}
 	if report.Decoded != 1 || len(report.Books) != 1 || len(report.Books[0].Highlights) != 0 {
 		t.Fatalf("unexpected empty KFX report: %+v", report)
+	}
+	if len(report.Warnings) != 1 || !strings.Contains(report.Warnings[0], "annotation cache is empty") {
+		t.Fatalf("empty KFX warnings = %v", report.Warnings)
+	}
+}
+
+func TestExtractPathKFXRecoversBadFileFallback(t *testing.T) {
+	dir := t.TempDir()
+	bookPath := filepath.Join(dir, "Recovered.kfx")
+	if err := os.WriteFile(bookPath, buildKFXContainerFixture(t, "恢复测试", "甲乙丙丁"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	sidecarDir := filepath.Join(dir, "Recovered.sdr")
+	if err := os.Mkdir(sidecarDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(sidecarDir, "active.yjr"), buildKRDSFixture(t, nil, nil), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	created := time.Date(2026, 8, 2, 3, 4, 5, 0, time.UTC)
+	backup := buildKRDSFixture(t, []fixtureAnnotation{
+		{kind: 1, start: "AVgCAAAoAAAA:1", end: "AVgCAAAoAAAA:2", created: created},
+	}, nil)
+	if err := os.WriteFile(filepath.Join(sidecarDir, "backup.yjr.bad_file"), backup, 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	report, err := ExtractPath(sidecarDir)
+	if err != nil {
+		t.Fatalf("ExtractPath(fallback KFX) error = %v; warnings = %v", err, report.Warnings)
+	}
+	if report.Decoded != 1 || len(report.Books) != 1 || len(report.Books[0].Highlights) != 1 {
+		t.Fatalf("unexpected fallback KFX report: %+v", report)
+	}
+	highlight := report.Books[0].Highlights[0]
+	if highlight.Text != "甲乙" || !highlight.CreatedAt.Equal(created) {
+		t.Fatalf("fallback highlight = %+v", highlight)
+	}
+	if len(report.Warnings) != 1 || !strings.Contains(report.Warnings[0], "recovered annotations") {
+		t.Fatalf("fallback warnings = %v", report.Warnings)
 	}
 }
 
