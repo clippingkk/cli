@@ -21,3 +21,6 @@ dist/
 
 /target
 .DS_Store
+
+# Local Kindle books may contain copyrighted text and signed delivery metadata.
+/fixtures/moto-jurnory/
