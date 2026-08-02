@@ -46,8 +46,8 @@ ck-cli sdr --path "/path/to/Book.sdr" --json
 ### Kindle `.sdr` Highlights
 
 Recent Kindle sidecars store annotations as positions rather than embedding the
-highlighted words. The `sdr` command pairs each `.azw3r` sidecar with its sibling
-AZW3/KF8 book and reconstructs the selected text locally:
+highlighted words. The `sdr` command pairs `.azw3r` and `.yjr` sidecars with
+their sibling AZW3/KF8 or KFX books and reconstructs the selected text locally:
 
 ```bash
 # Recursively scan a Kindle root or documents directory
@@ -56,18 +56,20 @@ ck-cli sdr --path "/Volumes/Kindle/documents"
 # Process a single sidecar directory or book
 ck-cli sdr --path "/path/to/Book.sdr"
 ck-cli sdr --path "/path/to/Book.azw3" --json
+ck-cli sdr --path "/path/to/Book.kfx" --json
 ```
 
 `--path` accepts a Kindle root/documents tree, one `.sdr` directory, or one
-`.azw3`, `.azw`, or KF8-containing `.mobi` file. The default output is readable
-text grouped by book. `--json` emits the same `title`, `content`, `pageAt`, and
-`createdAt` schema as `parse`; printed APNX pages are preferred, with the raw
-annotation position used as a fallback.
+`.azw3`, `.azw`, KF8-containing `.mobi`, or `.kfx` file. The default output is
+readable text grouped by book. `--json` emits the same `title`, `content`,
+`pageAt`, and `createdAt` schema as `parse`; printed APNX or KFX navigation pages
+are preferred, with the raw annotation position used as a fallback.
 
 The implementation is read-only, offline, and written natively in Go—Python and
-KindleUnpack are not runtime dependencies. It supports unencrypted AZW3/KF8 books
-with `.azw3r` sidecars. DRM-protected books, Mobi7, and KFX/`.yjr` are skipped as
-unsupported.
+KindleUnpack are not runtime dependencies. It supports unencrypted AZW3/KF8
+books with `.azw3r` sidecars and unencrypted KFX books with `.yjr` sidecars.
+DRM-protected books and Mobi7 remain unsupported; `.yjf` reading statistics are
+ignored because they do not contain highlight selections.
 
 ### Web Sync
 
@@ -101,7 +103,7 @@ See [Makefile](./Makefile) for all commands.
 - Flexible I/O (files, stdin/stdout, web sync)
 - High-performance processing of large files
 - Direct ClippingKK web service integration
-- Native Kindle `.sdr`/`.azw3r` highlight extraction
+- Native Kindle `.sdr` highlight extraction for `.azw3r` and `.yjr`
 - Cross-platform (macOS, Linux, Windows)
 
 ## Contributing
@@ -117,3 +119,6 @@ The `.sdr` implementation was informed by the published format research in
 and the container behavior documented by
 [KindleUnpack](https://github.com/kevinhendricks/KindleUnpack). No code from
 either GPLv3 project is bundled or required.
+
+Binary Amazon Ion values in KFX containers are decoded with the Apache-2.0
+licensed [Amazon Ion Go](https://github.com/amazon-ion/ion-go) library.

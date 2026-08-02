@@ -44,9 +44,9 @@ func ExtractPath(path string) (Report, error) {
 	}
 	if report.Decoded == 0 {
 		if len(report.Warnings) > 0 {
-			return report, fmt.Errorf("no supported AZW3/KF8 sidecar pairs could be decoded")
+			return report, fmt.Errorf("no supported Kindle sidecar pairs could be decoded")
 		}
-		return report, fmt.Errorf("no supported AZW3/KF8 sidecar pairs found under %s", path)
+		return report, fmt.Errorf("no supported Kindle sidecar pairs found under %s", path)
 	}
 	return report, nil
 }
@@ -108,7 +108,8 @@ func findSiblingBook(sidecarDir string) (string, error) {
 		return "", fmt.Errorf("read book directory: %w", err)
 	}
 	baseName := filepath.Base(base)
-	priority := map[string]int{".azw3": 0, ".azw": 1, ".mobi": 2}
+	hasAZW3R, hasYJR := sidecarFormats(sidecarDir)
+	priority := map[string]int{".azw3": 0, ".azw": 1, ".mobi": 2, ".kfx": 3}
 	type match struct {
 		path     string
 		priority int
@@ -123,10 +124,16 @@ func findSiblingBook(sidecarDir string) (string, error) {
 		if !ok || !strings.EqualFold(strings.TrimSuffix(entry.Name(), filepath.Ext(entry.Name())), baseName) {
 			continue
 		}
+		if ext == ".kfx" && !hasYJR {
+			continue
+		}
+		if ext != ".kfx" && !hasAZW3R {
+			continue
+		}
 		matches = append(matches, match{path: filepath.Join(parent, entry.Name()), priority: order})
 	}
 	if len(matches) == 0 {
-		return "", fmt.Errorf("no sibling AZW3/KF8 book found (KFX and DRM are unsupported)")
+		return "", fmt.Errorf("no compatible sibling AZW3/KF8 or KFX book found")
 	}
 	sort.Slice(matches, func(i, j int) bool {
 		if matches[i].priority != matches[j].priority {
@@ -137,9 +144,28 @@ func findSiblingBook(sidecarDir string) (string, error) {
 	return matches[0].path, nil
 }
 
+func sidecarFormats(directory string) (hasAZW3R, hasYJR bool) {
+	entries, err := os.ReadDir(directory)
+	if err != nil {
+		return false, false
+	}
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		switch strings.ToLower(filepath.Ext(entry.Name())) {
+		case ".azw3r":
+			hasAZW3R = true
+		case ".yjr":
+			hasYJR = true
+		}
+	}
+	return hasAZW3R, hasYJR
+}
+
 func supportedBookExtension(extension string) bool {
 	switch strings.ToLower(extension) {
-	case ".azw3", ".azw", ".mobi":
+	case ".azw3", ".azw", ".mobi", ".kfx":
 		return true
 	default:
 		return false
@@ -147,7 +173,8 @@ func supportedBookExtension(extension string) bool {
 }
 
 func extractCandidate(candidate bookCandidate) (BookResult, error) {
-	sidecarPaths, err := findSidecarFiles(candidate.sidecarDir)
+	bookExtension := strings.ToLower(filepath.Ext(candidate.bookPath))
+	sidecarPaths, err := findSidecarFiles(candidate.sidecarDir, bookExtension)
 	if err != nil {
 		return BookResult{}, err
 	}
@@ -180,9 +207,20 @@ func extractCandidate(candidate bookCandidate) (BookResult, error) {
 	if err != nil {
 		return BookResult{}, fmt.Errorf("read book: %w", err)
 	}
-	title, assembled, err := AssembleBook(bookData)
-	if err != nil {
-		return BookResult{}, fmt.Errorf("assemble %s: %w", filepath.Base(candidate.bookPath), err)
+	var title string
+	var assembled []byte
+	var kfx kfxBook
+	if bookExtension == ".kfx" {
+		kfx, err = assembleKFX(bookData)
+		if err != nil {
+			return BookResult{}, fmt.Errorf("assemble %s: %w", filepath.Base(candidate.bookPath), err)
+		}
+		title = kfx.title
+	} else {
+		title, assembled, err = AssembleBook(bookData)
+		if err != nil {
+			return BookResult{}, fmt.Errorf("assemble %s: %w", filepath.Base(candidate.bookPath), err)
+		}
 	}
 	if title == "" {
 		title = strings.TrimSuffix(filepath.Base(candidate.bookPath), filepath.Ext(candidate.bookPath))
@@ -198,8 +236,24 @@ func extractCandidate(candidate bookCandidate) (BookResult, error) {
 		return merged.Annotations[i].Type < merged.Annotations[j].Type
 	})
 	result := BookResult{BookPath: candidate.bookPath, SidecarDir: candidate.sidecarDir, Title: title}
-	for _, annotation := range merged.Annotations {
-		text, exact := recoverText(assembled, annotation.StartPosition, annotation.EndPosition)
+	annotations := merged.Annotations
+	if bookExtension == ".kfx" {
+		annotations = associateNotes(annotations)
+	}
+	for _, annotation := range annotations {
+		var text, exact string
+		var page string
+		if bookExtension == ".kfx" {
+			var found bool
+			text, found = kfx.textAt(annotation.StartPosition, annotation.EndPosition)
+			if found {
+				exact = text
+			}
+			page = kfx.pageAt(annotation.StartPosition)
+		} else {
+			text, exact = recoverText(assembled, annotation.StartPosition, annotation.EndPosition)
+			page = pageAt(merged.PageMap, annotation.StartPosition)
+		}
 		if text == "" {
 			continue
 		}
@@ -207,35 +261,63 @@ func extractCandidate(candidate bookCandidate) (BookResult, error) {
 			Title: title, Text: text, ExactText: exact, Type: annotation.Type,
 			StartPosition: annotation.StartPosition, EndPosition: annotation.EndPosition,
 			CreatedAt: annotation.CreationTime.UTC(), Note: annotation.Note,
-			PageAt: pageAt(merged.PageMap, annotation.StartPosition),
+			PageAt: page,
 		})
 	}
 	return result, nil
 }
 
-func findSidecarFiles(directory string) ([]string, error) {
+func associateNotes(annotations []Annotation) []Annotation {
+	notesByStart := make(map[int64][]int)
+	for index, annotation := range annotations {
+		if annotation.Type == AnnotationNote && annotation.Note != "" {
+			notesByStart[annotation.StartPosition] = append(notesByStart[annotation.StartPosition], index)
+		}
+	}
+	consumed := make(map[int]bool)
+	result := make([]Annotation, 0, len(annotations))
+	for _, annotation := range annotations {
+		if annotation.Type == AnnotationHighlight || annotation.Type == AnnotationUnderline {
+			for _, noteIndex := range notesByStart[annotation.EndPosition] {
+				if annotation.Note == "" {
+					annotation.Note = annotations[noteIndex].Note
+				} else {
+					annotation.Note += "\n" + annotations[noteIndex].Note
+				}
+				consumed[noteIndex] = true
+			}
+		}
+		result = append(result, annotation)
+	}
+	filtered := result[:0]
+	for index, annotation := range result {
+		if !consumed[index] {
+			filtered = append(filtered, annotation)
+		}
+	}
+	return filtered
+}
+
+func findSidecarFiles(directory, bookExtension string) ([]string, error) {
 	entries, err := os.ReadDir(directory)
 	if err != nil {
 		return nil, fmt.Errorf("read sidecar directory: %w", err)
 	}
 	var paths []string
-	hasKFX := false
+	wanted := ".azw3r"
+	if bookExtension == ".kfx" {
+		wanted = ".yjr"
+	}
 	for _, entry := range entries {
 		if entry.IsDir() {
 			continue
 		}
-		switch strings.ToLower(filepath.Ext(entry.Name())) {
-		case ".azw3r":
+		if strings.ToLower(filepath.Ext(entry.Name())) == wanted {
 			paths = append(paths, filepath.Join(directory, entry.Name()))
-		case ".yjr":
-			hasKFX = true
 		}
 	}
 	if len(paths) == 0 {
-		if hasKFX {
-			return nil, fmt.Errorf("sidecar contains only KFX .yjr data, which is unsupported")
-		}
-		return nil, fmt.Errorf("sidecar contains no .azw3r file")
+		return nil, fmt.Errorf("sidecar contains no %s file", wanted)
 	}
 	sort.Strings(paths)
 	return paths, nil

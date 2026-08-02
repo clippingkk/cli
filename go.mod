@@ -3,6 +3,7 @@ module github.com/clippingkk/cli
 go 1.24
 
 require (
+	github.com/amazon-ion/ion-go v1.5.0
 	github.com/pelletier/go-toml/v2 v2.2.4
 	github.com/urfave/cli/v2 v2.27.7
 )

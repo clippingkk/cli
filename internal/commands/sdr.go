@@ -17,18 +17,19 @@ var SDRCommand = &cli.Command{
 	Name:  "sdr",
 	Usage: "Extract highlighted text from Kindle .sdr sidecars",
 	Description: `Read Kindle .sdr sidecars and recover highlighted text from their
-unencrypted AZW3/KF8 books. The path may be a mounted Kindle or documents tree,
-a single .sdr directory, or a single AZW3/KF8 book.
+unencrypted AZW3/KF8 or KFX books. The path may be a mounted Kindle or documents
+tree, a single .sdr directory, or a supported book.
 
 Examples:
   ck-cli sdr --path /Volumes/Kindle/documents
   ck-cli sdr --path "Book.sdr" --json
-  ck-cli sdr --path "Book.azw3" --json`,
+  ck-cli sdr --path "Book.azw3" --json
+  ck-cli sdr --path "Book.kfx" --json`,
 	Flags: []cli.Flag{
 		&cli.StringFlag{
 			Name:     "path",
 			Aliases:  []string{"p"},
-			Usage:    "Kindle documents tree, .sdr directory, or AZW3/KF8 book",
+			Usage:    "Kindle documents tree, .sdr directory, or AZW3/KF8/KFX book",
 			Required: true,
 		},
 		&cli.BoolFlag{

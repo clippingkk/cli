@@ -26,7 +26,7 @@ type PageMap struct {
 	Positions []int64
 }
 
-// Sidecar is the annotation data decoded from one or more .azw3r files.
+// Sidecar is annotation data decoded from Kindle reader-data-store files.
 type Sidecar struct {
 	Annotations []Annotation
 	PageMap     PageMap

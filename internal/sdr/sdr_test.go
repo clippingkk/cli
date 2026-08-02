@@ -8,6 +8,9 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"unicode/utf8"
+
+	"github.com/amazon-ion/ion-go/ion"
 )
 
 func TestDecodeSidecarAndRecoverText(t *testing.T) {
@@ -176,6 +179,99 @@ func TestExtractPathEndToEnd(t *testing.T) {
 	}
 }
 
+func TestExtractPathKFXEndToEnd(t *testing.T) {
+	dir := t.TempDir()
+	bookPath := filepath.Join(dir, "Example.kfx")
+	sidecarDir := filepath.Join(dir, "Example.sdr")
+	if err := os.Mkdir(sidecarDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(bookPath, buildKFXContainerFixture(t, "旅途测试", "甲乙丙丁"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	created := time.Date(2026, 8, 2, 9, 30, 0, 0, time.UTC)
+	sidecar := buildKRDSFixture(t, []fixtureAnnotation{
+		{kind: 1, start: "fixture:2", end: "fixture:3", created: created},
+		{kind: 2, start: "fixture:3", end: "fixture:3", created: created.Add(time.Second), note: "重点"},
+	}, nil)
+	if err := os.WriteFile(filepath.Join(sidecarDir, "annotations.yjr"), sidecar, 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	report, err := ExtractPath(dir)
+	if err != nil {
+		t.Fatalf("ExtractPath() error = %v; warnings = %v", err, report.Warnings)
+	}
+	if report.Decoded != 1 || len(report.Books) != 1 || len(report.Books[0].Highlights) != 1 {
+		t.Fatalf("unexpected KFX report: %+v", report)
+	}
+	highlight := report.Books[0].Highlights[0]
+	if highlight.Title != "旅途测试" || highlight.Text != "乙丙" || highlight.ExactText != "乙丙" {
+		t.Fatalf("unexpected KFX highlight text: %+v", highlight)
+	}
+	if highlight.Note != "重点" || highlight.PageAt != "#7" || !highlight.CreatedAt.Equal(created) {
+		t.Fatalf("unexpected KFX highlight metadata: %+v", highlight)
+	}
+
+	direct, err := ExtractPath(bookPath)
+	if err != nil || direct.Decoded != 1 || len(direct.Books[0].Highlights) != 1 {
+		t.Fatalf("direct KFX ExtractPath() = %+v, %v", direct, err)
+	}
+}
+
+func TestExtractPathKFXEmptyAnnotations(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "Empty.kfx"), buildKFXContainerFixture(t, "空标注", "没有标注"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	sidecarDir := filepath.Join(dir, "Empty.sdr")
+	if err := os.Mkdir(sidecarDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(sidecarDir, "empty.yjr"), buildKRDSFixture(t, nil, nil), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	report, err := ExtractPath(sidecarDir)
+	if err != nil {
+		t.Fatalf("ExtractPath(empty KFX) error = %v", err)
+	}
+	if report.Decoded != 1 || len(report.Books) != 1 || len(report.Books[0].Highlights) != 0 {
+		t.Fatalf("unexpected empty KFX report: %+v", report)
+	}
+}
+
+func TestKFXRejectsMalformedData(t *testing.T) {
+	valid := buildKFXContainerFixture(t, "Malformed", "text")
+	tests := []struct {
+		name string
+		data []byte
+	}{
+		{name: "signature", data: []byte("NOPE")},
+		{name: "truncated", data: valid[:20]},
+		{name: "unsupported version", data: append([]byte(nil), valid...)},
+	}
+	binary.LittleEndian.PutUint16(tests[2].data[4:6], 99)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if _, err := assembleKFX(test.data); err == nil {
+				t.Fatal("assembleKFX() accepted malformed data")
+			}
+		})
+	}
+}
+
+func TestKFXTextAtAcrossFragments(t *testing.T) {
+	book := kfxBook{sections: []kfxSection{
+		{position: 10, text: "甲乙"},
+		{position: 12, text: "丙丁"},
+	}}
+	text, exact := book.textAt(11, 12)
+	if !exact || text != "乙丙" {
+		t.Fatalf("textAt() = %q, %v; want 乙丙, true", text, exact)
+	}
+}
+
 type fixtureAnnotation struct {
 	kind    int64
 	start   string
@@ -296,6 +392,104 @@ func buildKF8Fixture(t *testing.T, title string, markup []byte) []byte {
 	return file
 }
 
+type fixtureKFXEntity struct {
+	idSID   uint32
+	typeSID uint32
+	data    []byte
+}
+
+func buildKFXContainerFixture(t *testing.T, title, text string) []byte {
+	t.Helper()
+	textLength := int64(utf8.RuneCountInString(text))
+	entities := []fixtureKFXEntity{
+		buildKFXEntityFixture(t, 900, 145, map[string]any{
+			"$146": []any{text},
+		}),
+		buildKFXEntityFixture(t, 901, 259, map[string]any{
+			"$146": []any{map[string]any{
+				"$145": map[string]any{"name": "$900", "$403": int64(0)},
+				"$155": int64(2), "$159": "$269",
+			}},
+		}),
+		buildKFXEntityFixture(t, 348, 265, map[string]any{
+			"$181": []any{map[string]any{"$144": textLength + 1, "$174": "$902", "$184": int64(0)}},
+		}),
+		buildKFXEntityFixture(t, 902, 609, map[string]any{
+			"$174": "$902",
+			"$181": []any{[]any{int64(0), int64(1)}, []any{int64(1), int64(2)}, []any{textLength, int64(0)}},
+		}),
+		buildKFXEntityFixture(t, 348, 490, map[string]any{
+			"$491": []any{map[string]any{
+				"$495": "kindle_title_metadata",
+				"$258": []any{map[string]any{"$492": "title", "$307": title}},
+			}},
+		}),
+		buildKFXEntityFixture(t, 903, 391, map[string]any{
+			"$235": "$237",
+			"$247": []any{map[string]any{
+				"$241": map[string]any{"$244": "7"},
+				"$246": map[string]any{"$155": int64(2), "$143": int64(0)},
+			}},
+		}),
+	}
+
+	indexLength := len(entities) * 24
+	entityOffset := uint64(0)
+	index := make([]byte, indexLength)
+	for i, entity := range entities {
+		offset := i * 24
+		binary.LittleEndian.PutUint32(index[offset:offset+4], entity.idSID)
+		binary.LittleEndian.PutUint32(index[offset+4:offset+8], entity.typeSID)
+		binary.LittleEndian.PutUint64(index[offset+8:offset+16], entityOffset)
+		binary.LittleEndian.PutUint64(index[offset+16:offset+24], uint64(len(entity.data)))
+		entityOffset += uint64(len(entity.data))
+	}
+	containerInfo := encodeKFXIonFixture(t, map[string]any{
+		"$409": "fixture", "$410": int64(0), "$411": int64(0), "$412": int64(4096),
+		"$413": int64(kfxContainerHeaderSize), "$414": int64(indexLength), "$416": int64(0),
+	})
+	headerLength := kfxContainerHeaderSize + len(index) + len(containerInfo)
+	result := make([]byte, headerLength)
+	copy(result[:4], "CONT")
+	binary.LittleEndian.PutUint16(result[4:6], 2)
+	binary.LittleEndian.PutUint32(result[6:10], uint32(headerLength))
+	binary.LittleEndian.PutUint32(result[10:14], uint32(kfxContainerHeaderSize+len(index)))
+	binary.LittleEndian.PutUint32(result[14:18], uint32(len(containerInfo)))
+	copy(result[kfxContainerHeaderSize:], index)
+	copy(result[kfxContainerHeaderSize+len(index):], containerInfo)
+	for _, entity := range entities {
+		result = append(result, entity.data...)
+	}
+	return result
+}
+
+func buildKFXEntityFixture(t *testing.T, idSID, typeSID uint32, value any) fixtureKFXEntity {
+	t.Helper()
+	info := encodeKFXIonFixture(t, map[string]any{"$410": int64(0), "$411": int64(0)})
+	payload := encodeKFXIonFixture(t, value)
+	headerLength := kfxEntityHeaderSize + len(info)
+	data := make([]byte, headerLength)
+	copy(data[:4], "ENTY")
+	binary.LittleEndian.PutUint16(data[4:6], 1)
+	binary.LittleEndian.PutUint32(data[6:10], uint32(headerLength))
+	copy(data[kfxEntityHeaderSize:], info)
+	data = append(data, payload...)
+	return fixtureKFXEntity{idSID: idSID, typeSID: typeSID, data: data}
+}
+
+func encodeKFXIonFixture(t *testing.T, value any) []byte {
+	t.Helper()
+	var output bytes.Buffer
+	w := ion.NewBinaryWriter(&output, yjSharedSymbols())
+	if err := ion.MarshalTo(w, value); err != nil {
+		t.Fatal(err)
+	}
+	if err := w.Finish(); err != nil {
+		t.Fatal(err)
+	}
+	return append([]byte(nil), output.Bytes()...)
+}
+
 func buildIndexFixture(t *testing.T, tags []indexTag, text string, control byte, values []uint64) ([]byte, []byte) {
 	t.Helper()
 	tagLength := 12 + len(tags)*4
@@ -336,7 +530,7 @@ func buildIndexFixture(t *testing.T, tags []indexTag, text string, control byte,
 	return main, extra
 }
 
-func TestDiscoverSkipsKFXWithWarning(t *testing.T) {
+func TestDiscoverWarnsForMissingKFXBook(t *testing.T) {
 	dir := t.TempDir()
 	sidecar := filepath.Join(dir, "KFX.sdr")
 	if err := os.Mkdir(sidecar, 0o755); err != nil {

@@ -4,6 +4,8 @@ import (
 	"encoding/binary"
 	"fmt"
 	"math"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -370,8 +372,10 @@ func asPosition(value any) (int64, bool) {
 		return n, true
 	}
 	if text, ok := value.(string); ok {
-		var n int64
-		if _, err := fmt.Sscan(text, &n); err == nil {
+		if separator := strings.LastIndexByte(text, ':'); separator >= 0 {
+			text = text[separator+1:]
+		}
+		if n, err := strconv.ParseInt(text, 10, 64); err == nil && n >= 0 {
 			return n, true
 		}
 	}
